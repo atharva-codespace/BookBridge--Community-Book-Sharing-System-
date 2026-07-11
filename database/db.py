@@ -17,10 +17,10 @@ class Database:
 
     # ---- CHANGE THESE VALUES TO MATCH YOUR MYSQL SETUP ----
     DB_CONFIG = {
-        "host": "localhost",
-        "user": "root",
-        "password": "#atharvad@322",
-        "database": "book_bank",
+        "host": "sql12.freesqldatabase.com",
+        "user": "sql12832760",
+        "password": "n9KumuThkc",
+        "database": "sql12832760",
     }
 
     def __init__(self):
