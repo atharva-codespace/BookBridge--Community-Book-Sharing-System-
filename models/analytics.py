@@ -61,36 +61,10 @@ def fetch_books_summary():
     return summary
 
 
-# ---------------- TERMINAL PRINT ----------------
-
-def print_table(rows, title):
-    print(f"\n========== {title} ==========")
-    if not rows:
-        print("No records found.")
-        return
-
-    headers = list(rows[0].keys())
-    col_widths = {h: max(len(h), max(len(str(r[h])) for r in rows)) + 2 for h in headers}
-
-    header_line = "".join(h.ljust(col_widths[h]) for h in headers)
-    print(header_line)
-    print("-" * len(header_line))
-
-    for r in rows:
-        line = "".join(str(r[h]).ljust(col_widths[h]) for h in headers)
-        print(line)
-
-    print("=" * len(header_line), "\n")
-
-
-def print_summary(summary, title):
-    print(f"\n--- {title} Summary ---")
-    for k, v in summary.items():
-        print(f"{k:<20}: {v}")
-    print()
-
-
 # ---------------- GRAPH GENERATION ----------------
+# Note: terminal table printing for this data lives in services/report_service.py,
+# which uses the shared utils.helpers.print_table (tabulate-based) so every
+# module's output is formatted consistently.
 
 def generate_users_graph(summary):
     os.makedirs("Reports", exist_ok=True)

@@ -26,7 +26,8 @@ class Session:
         self.user_id = None            # User_ID or Admin_ID depending on user_type
         self.username = None
         self.full_name = None
-        self.role = None               # Buyer / Seller / Donor / Exchange User (Users only)
+        self.role = None               # Registered default role (Buyer/Seller/Donor/Exchange User)
+        self.active_role = None        # This session's chosen mode - may differ from `role`
         self.admin_level = None        # Admins only
         self.login_history_id = None   # Tracks the open Login_History row (to fill logout time)
 
@@ -37,6 +38,7 @@ class Session:
         self.username = user.username
         self.full_name = user.full_name
         self.role = user.role
+        self.active_role = None        # chosen right after login via choose_session_mode()
         self.admin_level = None
         self.login_history_id = login_history_id
 

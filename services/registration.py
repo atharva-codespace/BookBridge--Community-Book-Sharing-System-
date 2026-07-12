@@ -39,7 +39,7 @@ class Registration:
             security_answer = get_non_empty_input("Answer to your security question: ")
             security_answer_hash = Hashing.hash_password(security_answer.strip().lower())
 
-            role = self._ask_role()
+            # role = self._ask_role()
 
             
             password_hash = Hashing.hash_password(password)
@@ -51,7 +51,6 @@ class Registration:
                 location=location,
                 username=username,
                 password_hash=password_hash,
-                role=role,
                 security_question=security_question,
                 security_answer_hash=security_answer_hash,
             )

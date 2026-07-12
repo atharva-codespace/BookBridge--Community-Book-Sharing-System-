@@ -5,12 +5,21 @@ Entry point for the Book Bank Management System.
 Run this file to start the console application:
     python main.py
 
-This module wires every service together and implements:
-  - Feature 1  : System Entry menu
-  - Feature 4  : User Dashboard loop
-  - Feature 10 : Admin Dashboard loop
-  - Feature 14 : Dynamic Menu (only the correct dashboard is ever shown)
-  - Feature 15 : Global exception handling / invalid-choice handling
+
+This module wires every module together (Account & Profile, Book Inventory,
+Book Search, Requests/Reservations/Wishlist, Ratings & Feedback, and Admin
+Analytics) through a session-mode-aware menu hierarchy:
+  - System Entry menu
+  - Right after a User logs in, they choose this session's mode (Buy / Sell
+    / Donate / Exchange), defaulting to their registered Role - the same
+    account can act as a Buyer today and a Seller tomorrow without a second
+    registration, and can switch mid-session via "Switch Mode"
+  - Buyer Dashboard (top-level) -> feature submenus -> leaf action menus
+  - Owner Dashboard (Seller / Donor / Exchange mode) -> feature submenus
+  - Admin Dashboard (top-level) -> feature submenus -> leaf action menus
+  - Dynamic Menu: only the dashboard matching the active session mode is
+    ever shown
+  - Global exception handling / invalid-choice handling at every level
 """
 
 import sys
@@ -22,30 +31,53 @@ from services.registration import Registration
 from services.profile import ProfileManagement
 from services.password import PasswordManagement
 from services.admin_management import AdminManagement
+from services.book_management import BookManagement
+from services.review_service import ReviewService
+from services.request_service import RequestService
+from services.report_service import ReportService
 from services.authorization import Authorization
 from services.validation import Validation
 from utils.hashing import Hashing
-from utils.menus import show_main_menu, show_user_dashboard, show_admin_dashboard
+from utils.menus import (
+    MODE_CHOICES,
+    show_main_menu,
+    show_mode_menu,
+    show_buyer_dashboard,
+    show_owner_dashboard,
+    show_admin_dashboard,
+    show_account_menu,
+    show_marketplace_menu,
+    show_buyer_actions_menu,
+    show_wishlist_menu,
+    show_my_requests_reservations_menu,
+    show_my_listings_menu,
+    show_owner_activity_menu,
+    show_reviews_menu,
+    show_reviews_menu_for_sell,
+    show_notifications_menu,
+    show_user_mgmt_menu,
+    show_book_mgmt_menu,
+    show_reviews_mod_menu,
+    show_requests_overview_menu,
+    show_reports_menu,
+)
 from utils.helpers import pause, get_non_empty_input
 
+ROLE_TO_LISTING_TYPE = {
+    "Seller": "Sale",
+    "Donor": "Donation",
+    "Exchange User": "Exchange",
+}
+
 
 # ======================================================================
-# USER DASHBOARD LOOP (Feature 4)
+# SHARED SUBMENU: MY ACCOUNT (every role)
 # ======================================================================
-def user_dashboard_loop(session, auth):
-    """Displays the User Dashboard and routes choices to ProfileManagement /
-    PasswordManagement until the user logs out, deactivates, or deletes."""
-    profile = ProfileManagement(session)
-    password_mgmt = PasswordManagement(session)
-
+def account_menu_loop(session, auth, profile, password_mgmt):
+    """My Account: profile, password, preferences, activity history, account status."""
     while True:
-        # Defensive re-check: only a logged-in User may see this menu (Feature 13/14)
-        if not Authorization.require_user(session):
-            return
-
-        show_user_dashboard(session.username)
+        show_account_menu()
         choice = input("Enter choice: ").strip()
-
         try:
             if choice == "1":
                 profile.view_profile()
@@ -72,32 +104,321 @@ def user_dashboard_loop(session, auth):
                     auth.logout()
                     return
             elif choice == "11":
-                auth.logout()
                 return
             else:
                 print("Invalid choice. Please select a valid menu option (1-11).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
+
+        if not session.is_authenticated:
+            return
+        pause()
+
+
+def reviews_menu_loop(review_service):
+    """Ratings & feedback (Module 5) - shared by every role."""
+    while True:
+        show_reviews_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                review_service.submit_review()
+            # elif choice == "2":
+            #     review_service.view_reviews_for_book()
+            elif choice == "2":
+                review_service.view_my_reviews()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-4).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def notifications_menu_loop(request_service):
+    """Shared by every role."""
+    while True:
+        show_notifications_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.view_notifications()
+            elif choice == "2":
+                request_service.mark_notification_read()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
         pause()
 
 
 # ======================================================================
-# ADMIN DASHBOARD LOOP (Feature 10)
+# BUYER DASHBOARD - LEAF SUBMENUS
 # ======================================================================
-def admin_dashboard_loop(session, auth):
-    """Displays the Admin Dashboard and routes choices to AdminManagement
-    until the administrator logs out."""
-    admin_mgmt = AdminManagement(session)
+def marketplace_menu_loop(book_mgmt):
+    """Browse & search the book marketplace (Module 3)."""
+    while True:
+        show_marketplace_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                book_mgmt.browse_books()
+            elif choice == "2":
+                book_mgmt.search_books()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def buyer_actions_menu_loop(request_service):
+    """Request Book (instant -> Sold/Donated/Exchanged) / Reserve Book (instant -> Reserved)."""
 
     while True:
-        # Defensive re-check: only a logged-in Admin may see this menu (Feature 13/14)
-        if not Authorization.require_admin(session):
+        show_buyer_actions_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.request_book()
+            elif choice == "2":
+                request_service.reserve_book()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def wishlist_menu_loop(request_service):
+    while True:
+        show_wishlist_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.add_to_wishlist()
+            elif choice == "2":
+                request_service.remove_from_wishlist()
+            elif choice == "3":
+                request_service.view_wishlist()
+            elif choice == "4":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-4).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def my_requests_reservations_menu_loop(request_service):
+    while True:
+        show_my_requests_reservations_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.view_my_sent_requests()
+            elif choice == "2":
+                request_service.view_my_reservations()
+            elif choice == "3":
+                request_service.complete_reservation()
+            elif choice == "4":
+                request_service.cancel_reservation()
+            elif choice == "5":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-5).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def buyer_dashboard_loop(session, auth):
+    """Buyer Role: browse/search, request/reserve books, wishlist, reviews, notifications."""
+    profile = ProfileManagement(session)
+    password_mgmt = PasswordManagement(session)
+    book_mgmt = BookManagement(session)
+    review_service = ReviewService(session)
+    request_service = RequestService(session)
+
+    while True:
+        if not Authorization.require_user(session):
             return
 
-        show_admin_dashboard(session.username)
+        show_buyer_dashboard(session.username)
         choice = input("Enter choice: ").strip()
 
+        try:
+            if choice == "1":
+                account_menu_loop(session, auth, profile, password_mgmt)
+            elif choice == "2":
+                marketplace_menu_loop(book_mgmt)
+            elif choice == "3":
+                buyer_actions_menu_loop(request_service)
+            elif choice == "4":
+                wishlist_menu_loop(request_service)
+            elif choice == "5":
+                my_requests_reservations_menu_loop(request_service)
+            elif choice == "6":
+                reviews_menu_loop(review_service)
+            # elif choice == "7":
+                # notifications_menu_loop(request_service)
+            elif choice == "7":
+                return  # Switch Mode: back to mode selection, still logged in
+            elif choice == "8":
+                auth.logout()
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-9).")
+                pause()
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            pause()
+
+        if not session.is_authenticated:
+            return
+
+
+# ======================================================================
+# OWNER DASHBOARD (Seller / Donor / Exchange mode) - LEAF SUBMENUS
+# ======================================================================
+def my_listings_menu_loop(book_mgmt, role):
+    """Add/view/edit/delete my own listings. Add uses the role's fixed Listing_Type."""
+    while True:
+        show_my_listings_menu(role)
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                book_mgmt.add_book(listing_type=ROLE_TO_LISTING_TYPE.get(role))
+            elif choice == "2":
+                book_mgmt.view_my_listings()
+            elif choice == "3":
+                book_mgmt.edit_book()
+            elif choice == "4":
+                book_mgmt.delete_book()
+            elif choice == "5":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-5).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def owner_activity_menu_loop(request_service):
+    """Read-only history: who has requested/reserved my listings."""
+    while True:
+        show_owner_activity_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.view_requests_on_my_books()
+            elif choice == "2":
+                request_service.view_reservations_on_my_books()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def owner_dashboard_loop(session, auth, role):
+    """Seller / Donor / Exchange User Role: manage listings, see activity on them."""
+    profile = ProfileManagement(session)
+    password_mgmt = PasswordManagement(session)
+    book_mgmt = BookManagement(session)
+    review_service = ReviewService(session)
+    request_service = RequestService(session)
+
+    while True:
+        if not Authorization.require_user(session):
+            return
+
+        show_owner_dashboard(session.username, role)
+        choice = input("Enter choice: ").strip()
+
+        try:
+            if choice == "1":
+                account_menu_loop(session, auth, profile, password_mgmt)
+            elif choice == "2":
+                my_listings_menu_loop(book_mgmt, role)
+            elif choice == "3":
+                owner_activity_menu_loop(request_service)
+            elif choice == "4":
+                reviews_menu_loop(review_service)
+            # elif choice == "5":
+                # notifications_menu_loop(request_service)
+            elif choice == "5":
+                return  # Switch Mode: back to mode selection, still logged in
+            elif choice == "6":
+                auth.logout()
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-7).")
+                pause()
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            pause()
+
+        if not session.is_authenticated:
+            return
+
+
+def choose_session_mode(session):
+    """
+    Prompts 'What would you like to do today?' and sets session.active_role
+    for this session. Blank input accepts the account's registered default
+    Role. Called right after login and again whenever the user picks
+    'Switch Mode' from inside a dashboard - the same account can act as a
+    Buyer in one session (or even mid-session) and a Seller in the next
+    without a second registration.
+    """
+    while True:
+        show_mode_menu(session.role)
+        choice = input("Enter choice: ").strip()
+        if choice == "":
+            session.active_role = session.role
+            return
+        if choice in MODE_CHOICES:
+            session.active_role = MODE_CHOICES[choice]
+            return
+        print("Invalid choice. Please select 1-4, or press Enter for your default.")
+
+
+def user_dashboard_loop(session, auth):
+    """Dynamic Menu dispatcher: routes to the dashboard matching this
+    session's chosen mode, and loops back to mode selection on Switch Mode."""
+    while True:
+        if not Authorization.require_user(session):
+            return
+
+        choose_session_mode(session)
+
+        if session.active_role == "Buyer":
+            buyer_dashboard_loop(session, auth)
+        else:
+            owner_dashboard_loop(session, auth, session.active_role)
+
+        if not session.is_authenticated:
+            return
+
+
+# ======================================================================
+# ADMIN DASHBOARD - LEAF SUBMENUS
+# ======================================================================
+def user_mgmt_menu_loop(admin_mgmt):
+    while True:
+        show_user_mgmt_menu()
+        choice = input("Enter choice: ").strip()
         try:
             if choice == "1":
                 admin_mgmt.register_admin()
@@ -116,23 +437,139 @@ def admin_dashboard_loop(session, auth):
             elif choice == "8":
                 admin_mgmt.view_admins()
             elif choice == "9":
-                auth.logout()
                 return
             else:
                 print("Invalid choice. Please select a valid menu option (1-9).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+        pause()
 
+
+def book_mgmt_menu_loop(book_mgmt):
+    while True:
+        show_book_mgmt_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                book_mgmt.admin_view_all_books()
+            elif choice == "2":
+                book_mgmt.search_books()
+            elif choice == "3":
+                book_mgmt.admin_delete_book()
+            elif choice == "4":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-4).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def reviews_mod_menu_loop(review_service):
+    while True:
+        show_reviews_mod_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                review_service.admin_view_all_reviews()
+            elif choice == "2":
+                review_service.admin_delete_review()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def requests_overview_menu_loop(request_service):
+    while True:
+        show_requests_overview_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                request_service.admin_view_all_requests()
+            elif choice == "2":
+                request_service.admin_view_all_reservations()
+            elif choice == "3":
+                request_service.admin_expire_reservation()
+            elif choice == "4":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-4).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        pause()
+
+
+def reports_menu_loop(report_service):
+    """See All Reports: shows analytics + graph on screen and auto-emails the PDF to the admin."""
+    while True:
+        show_reports_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                report_service.show_user_report()
+            elif choice == "2":
+                report_service.show_book_report()
+            elif choice == "3":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-3).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
         pause()
 
 
 # ======================================================================
+# ADMIN DASHBOARD (top-level)
+# ======================================================================
+def admin_dashboard_loop(session, auth):
+    """Displays the Admin Dashboard and routes choices into each feature area
+    until the administrator logs out."""
+    admin_mgmt = AdminManagement(session)
+    book_mgmt = BookManagement(session)
+    review_service = ReviewService(session)
+    request_service = RequestService(session)
+    report_service = ReportService(session)
+
+    while True:
+        if not Authorization.require_admin(session):
+            return
+
+        show_admin_dashboard(session.username)
+        choice = input("Enter choice: ").strip()
+
+        try:
+            if choice == "1":
+                user_mgmt_menu_loop(admin_mgmt)
+            elif choice == "2":
+                book_mgmt_menu_loop(book_mgmt)
+            elif choice == "3":
+                reviews_mod_menu_loop(review_service)
+            elif choice == "4":
+                requests_overview_menu_loop(request_service)
+            elif choice == "5":
+                reports_menu_loop(report_service)
+            elif choice == "6":
+                auth.logout()
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-6).")
+                pause()
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            pause()
+
+
+# ======================================================================
 # FIRST-TIME ADMIN BOOTSTRAP
-# The Administrators table starts empty, but Feature 11 (Register New
-# Admin) can only be performed by an admin who is already logged in.
-# To break this chicken-and-egg problem, main() checks once at startup
-# whether any administrator exists; if not, it walks the operator
-# through creating the very first one before showing the main menu.
+# The Administrators table starts empty, but Register New Admin can only be
+# performed by an admin who is already logged in. To break this
+# chicken-and-egg problem, main() checks once at startup whether any
+# administrator exists; if not, it walks the operator through creating the
+# very first one before showing the main menu.
 # ======================================================================
 def bootstrap_first_admin():
     try:
@@ -192,7 +629,7 @@ def bootstrap_first_admin():
 
 
 # ======================================================================
-# MAIN PROGRAM LOOP (Feature 1: System Entry)
+# MAIN PROGRAM LOOP (System Entry)
 # ======================================================================
 def main():
     # Establish the database connection once at startup.
@@ -217,6 +654,7 @@ def main():
             if choice == "1":
                 identifier = get_non_empty_input("Username or Email: ")
                 password = input("Password: ").strip()
+
                 if auth.login_user(identifier, password):
                     user_dashboard_loop(session, auth)
 
@@ -245,6 +683,7 @@ def main():
             print(f"An unexpected error occurred: {e}")
 
         pause()
+
 
 
 if __name__ == "__main__":

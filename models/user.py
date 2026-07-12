@@ -55,7 +55,7 @@ class User:
     # ==================== CREATE ====================
     @classmethod
     def create(cls, full_name, email, phone_number, location, username,
-               password_hash, role, security_question=None, security_answer_hash=None):
+               password_hash, role=None, security_question=None, security_answer_hash=None):
         """Inserts a new user into the Users table and returns the new User_ID."""
         db = Database.get_instance()
         query = """

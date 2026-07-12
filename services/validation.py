@@ -16,7 +16,7 @@ class Validation:
 
     EMAIL_PATTERN = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
     PHONE_PATTERN = re.compile(r"^[0-9]{10}$")
-    VALID_ROLES = ["Buyer", "Seller", "Donor", "Exchange User"]
+    VALID_ROLES = ["Buyer", "Seller"]
     SPECIAL_CHAR_PATTERN = re.compile(r"[!@#$%^&*()\-_=+\[\]{}|;:'\",.<>/?`~\\]")
 
     @staticmethod
@@ -68,3 +68,16 @@ class Validation:
     def validate_menu_choice(choice: str, valid_choices) -> bool:
         """Checks that a menu choice is one of the accepted values."""
         return choice in valid_choices
+
+    @staticmethod
+    def validate_price(price_str: str) -> bool:
+        """Price must parse as a non-negative number."""
+        try:
+            return float(price_str) >= 0
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def validate_rating(rating_str: str) -> bool:
+        """Rating must be an integer between 1 and 5 inclusive."""
+        return bool(rating_str) and rating_str.strip().isdigit() and 1 <= int(rating_str) <= 5

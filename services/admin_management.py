@@ -12,7 +12,21 @@ from models.user import User
 from models.admin import Admin
 from services.validation import Validation
 from utils.hashing import Hashing
-from utils.helpers import confirm_action
+from utils.helpers import confirm_action, print_table
+
+USER_TABLE_FIELDS = ["User_ID", "Username", "Full_Name", "Email", "Role", "Account_Status"]
+ADMIN_TABLE_FIELDS = ["Admin_ID", "Username", "Full_Name", "Email", "Admin_Level", "Account_Status", "Created_By"]
+
+
+def _user_to_row(u):
+    return {"User_ID": u.user_id, "Username": u.username, "Full_Name": u.full_name,
+            "Email": u.email, "Role": u.role, "Account_Status": u.account_status}
+
+
+def _admin_to_row(a):
+    return {"Admin_ID": a.admin_id, "Username": a.username, "Full_Name": a.full_name,
+            "Email": a.email, "Admin_Level": a.admin_level, "Account_Status": a.account_status,
+            "Created_By": a.created_by}
 
 
 class AdminManagement:
@@ -126,13 +140,7 @@ class AdminManagement:
     # ==================== VIEW USERS ====================
     def view_users(self):
         users = User.get_all()
-        if not users:
-            print("No users found.")
-            return
-        print("\n--- ALL USERS ---")
-        for u in users:
-            print(f"[{u.user_id}] {u.username} | {u.full_name} | {u.email} | "
-                  f"{u.role} | {u.account_status}")
+        print_table([_user_to_row(u) for u in users], headers=USER_TABLE_FIELDS, title="ALL USERS")
 
     # ==================== SEARCH USER ====================
     def search_user(self):
@@ -141,13 +149,7 @@ class AdminManagement:
             print("Search term cannot be empty.")
             return
         results = User.search(keyword)
-        if not results:
-            print("No matching users found.")
-            return
-        print("\n--- SEARCH RESULTS ---")
-        for u in results:
-            print(f"[{u.user_id}] {u.username} | {u.full_name} | {u.email} | "
-                  f"{u.role} | {u.account_status}")
+        print_table([_user_to_row(u) for u in results], headers=USER_TABLE_FIELDS, title="SEARCH RESULTS")
 
     # ==================== ACTIVATE / DEACTIVATE / DELETE ====================
     def activate_user(self):
@@ -183,10 +185,4 @@ class AdminManagement:
     # ==================== VIEW ADMINS ====================
     def view_admins(self):
         admins = Admin.get_all()
-        if not admins:
-            print("No administrators found.")
-            return
-        print("\n--- ALL ADMINISTRATORS ---")
-        for a in admins:
-            print(f"[{a.admin_id}] {a.username} | {a.full_name} | {a.email} | "
-                  f"{a.admin_level} | {a.account_status} | Created by: {a.created_by}")
+        print_table([_admin_to_row(a) for a in admins], headers=ADMIN_TABLE_FIELDS, title="ALL ADMINISTRATORS")
