@@ -27,7 +27,7 @@ class Database:
         # NOTE: Do not call Database() directly - use Database.get_instance()
         self.connection = None
         self._connect()
-
+    
     @classmethod
     def get_instance(cls):
         """Returns the single shared Database instance (creates it if needed)."""

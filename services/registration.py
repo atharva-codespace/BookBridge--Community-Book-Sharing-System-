@@ -9,7 +9,8 @@ from utils.helpers import get_non_empty_input
 from utils.hashing import Hashing
 from services.validation import Validation
 from models.user import User
-
+from services.otp_service import OTPService
+import traceback
 
 class Registration:
     """Drives the interactive user-registration workflow."""
@@ -23,15 +24,24 @@ class Registration:
             location = get_non_empty_input("Location: ")
             username = self._ask_valid_username()
             password = self._ask_valid_password()
-            role = self._ask_role()
 
+            
+            otp_service = OTPService()
+
+            if not otp_service.verify_email(email):
+                print("Registration cancelled.")
+                return
             # A security question/answer is required to support the
             # Forgot Password recovery flow (Feature 6).
+
             security_question = get_non_empty_input(
                 "Set a security question (used later for password recovery): ")
             security_answer = get_non_empty_input("Answer to your security question: ")
             security_answer_hash = Hashing.hash_password(security_answer.strip().lower())
 
+            role = self._ask_role()
+
+            
             password_hash = Hashing.hash_password(password)
 
             User.create(
@@ -49,8 +59,8 @@ class Registration:
             print(f"\nRegistration successful! You may now log in as '{username}'.")
             return True
 
-        except Exception as e:
-            print(f"Registration failed due to an error: {e}")
+        except Exception:
+            traceback.print_exc()
             return False
 
     # ---------------- individual field prompts with validation ----------------
