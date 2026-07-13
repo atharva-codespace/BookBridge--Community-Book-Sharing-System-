@@ -76,8 +76,15 @@ class Book:
     @classmethod
     def get_by_id(cls, book_id):
         db = Database.get_instance()
+        row = db.fetch_one("SELECT * FROM Books WHERE Title = %s", (book_id,))
+        return cls._row_to_book(row)
+    
+    @classmethod
+    def get_by_idd(cls, book_id):
+        db = Database.get_instance()
         row = db.fetch_one("SELECT * FROM Books WHERE Book_ID = %s", (book_id,))
         return cls._row_to_book(row)
+
 
     @classmethod
     def get_all(cls):
@@ -147,6 +154,39 @@ class Book:
 
         return [cls._row_to_book(r) for r in rows]
 
+    @classmethod
+    def searchinwishlist(cls, field, value):
+        """
+        Generic search used by Module 3 (Book Search & Discovery).
+        `field` selects the search mode; `value` is the search term
+        (a (min, max) tuple for 'price_range').
+        """
+        db = Database.get_instance()
+        base = "SELECT * FROM wishlist WHERE "
+
+        if field == "title":
+            rows = db.fetch_all(base + "book_name LIKE %s", (f"%{value}%",))
+        else:
+            raise ValueError(f"Unknown search field: {field}")
+
+        return [cls._row_to_book(r) for r in rows]
+    
+    @classmethod
+    def searchinreservations(cls, field, value):
+        """
+        Generic search used by Module 3 (Book Search & Discovery).
+        `field` selects the search mode; `value` is the search term
+        (a (min, max) tuple for 'price_range').
+        """
+        db = Database.get_instance()
+        base = "SELECT * FROM reservations WHERE "
+
+        if field == "title":
+            rows = db.fetch_all(base + "book_name LIKE %s", (f"%{value}%",))
+        else:
+            raise ValueError(f"Unknown search field: {field}")
+
+        return [cls._row_to_book(r) for r in rows]
     # ==================== UPDATE ====================
     @classmethod
     def update(cls, book_id, title, author, isbn, category, price, seller_name, phone,
@@ -167,7 +207,7 @@ class Book:
     def update_availability(cls, book_id, availability):
         db = Database.get_instance()
         db.execute_query(
-            "UPDATE Books SET Availability = %s WHERE Book_ID = %s",
+            "UPDATE Books SET Availability = %s WHERE book_name = %s",
             (availability, book_id), commit=True,
         )
 

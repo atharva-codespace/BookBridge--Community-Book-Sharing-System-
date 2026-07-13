@@ -83,4 +83,4 @@ class Review:
     @classmethod
     def delete(cls, review_id):
         db = Database.get_instance()
-        db.execute_query("DELETE FROM Reviews WHERE Review_ID = %s", (review_id,), commit=True)
+        db.execute_query("DELETE FROM reviews WHERE Review_ID = %s", (review_id,), commit=True)

@@ -66,8 +66,8 @@ class BookManagement:
             location = input(f"Location [{owner.location}]: ").strip() or owner.location
 
             book_condition = choose_book_condition()
-            if listing_type is None:
-                listing_type = choose_listing_type()
+            #if listing_type is None:
+           #     listing_type = choose_listing_type()
             edition = input("Edition (optional): ").strip() or None
 
             Book.create(
@@ -91,6 +91,8 @@ class BookManagement:
 
         print("\n--- EDIT BOOK (press Enter to keep the current value) ---")
         title = input(f"Title [{book.title}]: ").strip() or book.title
+
+
         author = input(f"Author [{book.author}]: ").strip() or book.author
         isbn = input(f"ISBN [{book.isbn or ''}]: ").strip() or book.isbn
         category = input(f"Category [{book.category}]: ").strip() or book.category
@@ -104,13 +106,13 @@ class BookManagement:
         location = input(f"Location [{book.location}]: ").strip() or book.location
         print(f"Current Condition: {book.book_condition}")
         book_condition = choose_book_condition()
-        print(f"Current Listing Type: {book.listing_type}")
-        listing_type = choose_listing_type()
+        #print(f"Current Listing Type: {book.listing_type}")
+        #listing_type = choose_listing_type()
         edition = input(f"Edition [{book.edition or ''}]: ").strip() or book.edition
 
         Book.update(
             book.book_id, title, author, isbn, category, price, book.seller_name,
-            book.phone, location, book_condition, listing_type, edition,
+            book.phone, location, book_condition, book.listing_type, edition,
         )
         print("Book updated successfully.")
 
@@ -123,11 +125,11 @@ class BookManagement:
             print("Deletion cancelled.")
 
     def _select_own_book(self, action_name):
-        bid = input(f"Enter Book ID to {action_name}: ").strip()
-        if not bid.isdigit():
+        bname = input(f"Enter Book Name to {action_name}: ").strip()
+        if not Book.search("title",bname):
             print("Invalid Book ID.")
             return None
-        book = Book.get_by_id(int(bid))
+        book = Book.get_by_id(bname)
         if not book:
             print("Book not found.")
             return None
@@ -141,8 +143,8 @@ class BookManagement:
         print("\n--- BROWSE BOOKS ---")
         print("1. All Books")
         print("2. Available for Sale")
-        print("3. Available for Donation")
-        print("4. Available for Exchange")
+        # print("3. Available for Donation")
+        # print("4. Available for Exchange")
         choice = input("Enter choice: ").strip()
 
         if choice == "1":
@@ -209,7 +211,7 @@ class BookManagement:
         if not bid.isdigit():
             print("Invalid Book ID.")
             return
-        book = Book.get_by_id(int(bid))
+        book = Book.get_by_idd(int(bid))
         if not book:
             print("Book not found.")
             return

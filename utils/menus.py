@@ -100,7 +100,7 @@ def show_buyer_dashboard(username):
     print("5. My Requests & Reservations")
     print("6. Reviews & Ratings")
     # print("7. Notifications")
-    print("7. Switch Mode (Buy / Sell / Donate / Exchange)")
+    print("7. Switch Mode (Buy / Sell)")
     print("8. Logout")
 
 
@@ -147,7 +147,7 @@ def show_owner_dashboard(username, role):
     print("3. Requests & Reservations On My Books")
     print("4. Reviews & Ratings")
     # print("5. Notifications")
-    print("5. Switch Mode (Buy / Sell / Donate / Exchange)")
+    print("5. Switch Mode (Buy / Sell )")
     print("6. Logout")
 
 

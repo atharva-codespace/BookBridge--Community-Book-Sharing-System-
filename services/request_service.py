@@ -23,9 +23,9 @@ from models.reservation import Reservation
 from models.wishlist import Wishlist
 from utils.helpers import confirm_action, print_table
 
-WISHLIST_FIELDS = ["Wishlist_ID", "Book_ID", "Book_Title", "Availability", "Added_Date"]
+WISHLIST_FIELDS = ["Wishlist_ID", "Book_Title"]
 REQUEST_FIELDS = ["Request_ID", "Book_Title", "Request_Date"]
-RESERVATION_FIELDS = ["Reservation_ID", "Book_Title", "Reserved_Date", "Expiry_Date", "Status"]
+RESERVATION_FIELDS = ["Reservation_ID", "Book_name", "Expiry_date", "Status"]
 NOTIFICATION_FIELDS = ["Notification_ID", "Message", "Status", "Created_Date"]
 
 AVAILABILITY_ON_FULFILL = {
@@ -36,8 +36,8 @@ AVAILABILITY_ON_FULFILL = {
 
 
 def _wishlist_to_row(w):
-    return {"Wishlist_ID": w.wishlist_id, "Book_ID": w.book_id, "Book_Title": w.book_title,
-            "Availability": w.availability, "Added_Date": w.added_date}
+    return {"Wishlist_ID": w.wishlist_id, "Book_Title": w.book_title,
+            }
 
 
 def _request_to_row(r):
@@ -46,8 +46,8 @@ def _request_to_row(r):
 
 
 def _reservation_to_row(r):
-    return {"Reservation_ID": r.reservation_id, "Book_Title": r.book_title,
-            "Reserved_Date": r.reserved_date, "Expiry_Date": r.expiry_date, "Status": r.status}
+    return {"Reservation_ID": r.reservation_id, "Book_name": r.book_name,
+            "Expiry_date": r.expiry_date, "Status": r.status}
 
 
 def _notification_to_row(n):
@@ -74,23 +74,23 @@ class RequestService:
 
     # ==================== WISHLIST ====================
     def add_to_wishlist(self):
-        bid = input("Enter Book ID to add to your wishlist: ").strip()
-        if not bid.isdigit() or not Book.get_by_id(int(bid)):
+        bname= input("Enter Book Name to add to your wishlist: ").strip()
+        if not Book.search("title",bname):
             print("Book not found.")
             return
-        book_id = int(bid)
-        if Wishlist.exists(self.session.user_id, book_id):
+        book_name = bname
+        if Wishlist.exists(self.session.user_id, book_name):
             print("This book is already in your wishlist.")
             return
-        Wishlist.add(self.session.user_id, book_id)
+        Wishlist.add(self.session.user_id, bname)
         print("Book added to your wishlist.")
 
     def remove_from_wishlist(self):
-        wid = input("Enter Wishlist ID to remove: ").strip()
-        if not wid.isdigit():
-            print("Invalid Wishlist ID.")
+        bwname = input("Enter Book Name to remove from Wishlist: ").strip()
+        if not Book.searchinwishlist("title",bwname):
+            print("Invalid Book Name in Wishlist.")
             return
-        entry = Wishlist.get_by_id(int(wid))
+        entry = Wishlist.get_by_id(bwname)
         if not entry or entry.user_id != self.session.user_id:
             print("Wishlist entry not found.")
             return
@@ -134,12 +134,12 @@ class RequestService:
         if not book:
             return
 
-        Reservation.create(book.book_id, self.session.user_id)
+        Reservation.create(book.title, self.session.user_id)
         Book.update_availability(book.book_id, "Reserved")
-        Notification.create(
-            book.owner_id,
-            f"'{book.title}' was reserved by {self.session.full_name}.",
-        )
+        # Notification.create(
+        #     book.owner_id,
+        #     f"'{book.title}' was reserved by {self.session.full_name}.",
+        # )
         print(f"'{book.title}' has been reserved for you.")
 
     def _select_available_book(self):
@@ -175,9 +175,9 @@ class RequestService:
         reservation = self._select_own_active_reservation()
         if not reservation:
             return
-        book = Book.get_by_id(reservation.book_id)
+        book = Book.get_by_id(reservation.book_name)
         Reservation.update_status(reservation.reservation_id, "Completed")
-        new_status = AVAILABILITY_ON_FULFILL.get(book.listing_type, "Sold")
+        new_status = AVAILABILITY_ON_FULFILL.get(book.availability, "Sold")
         Book.update_availability(reservation.book_id, new_status)
         print(f"Reservation completed. Book marked as '{new_status}'.")
 
@@ -186,15 +186,15 @@ class RequestService:
         if not reservation:
             return
         Reservation.update_status(reservation.reservation_id, "Cancelled")
-        Book.update_availability(reservation.book_id, "Available")
+        Book.update_availability(reservation.book_name, "Available")
         print("Reservation cancelled. The book is available again.")
 
     def _select_own_active_reservation(self):
-        rid = input("Enter Reservation ID: ").strip()
-        if not rid.isdigit():
+        rbook = input("Enter Reserved Book Name: ").strip()
+        if not Book.searchinreservations("title",rbook):
             print("Invalid Reservation ID.")
             return None
-        reservation = Reservation.get_by_id(int(rid))
+        reservation = Reservation.get_by_id(rbook)
         if not reservation or reservation.user_id != self.session.user_id:
             print("Reservation not found.")
             return None

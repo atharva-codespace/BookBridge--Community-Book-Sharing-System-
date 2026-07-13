@@ -181,6 +181,7 @@ def marketplace_menu_loop(book_mgmt):
 def buyer_actions_menu_loop(request_service):
     """Request Book (instant -> Sold/Donated/Exchanged) / Reserve Book (instant -> Reserved)."""
 
+
     while True:
         show_buyer_actions_menu()
         choice = input("Enter choice: ").strip()
@@ -653,6 +654,7 @@ def main():
         try:
             if choice == "1":
                 identifier = get_non_empty_input("Username or Email: ")
+
                 password = input("Password: ").strip()
 
                 if auth.login_user(identifier, password):
