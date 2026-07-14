@@ -153,6 +153,7 @@ def notifications_menu_loop(request_service):
                 print("Invalid choice. Please select a valid menu option (1-3).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+
         pause()
 
 
@@ -163,6 +164,7 @@ def marketplace_menu_loop(book_mgmt):
     """Browse & search the book marketplace (Module 3)."""
     while True:
         show_marketplace_menu()
+
         choice = input("Enter choice: ").strip()
         try:
             if choice == "1":
@@ -269,11 +271,11 @@ def buyer_dashboard_loop(session, auth):
                 my_requests_reservations_menu_loop(request_service)
             elif choice == "6":
                 reviews_menu_loop(review_service)
-            # elif choice == "7":
-                # notifications_menu_loop(request_service)
             elif choice == "7":
-                return  # Switch Mode: back to mode selection, still logged in
+                notifications_menu_loop(request_service)
             elif choice == "8":
+                return  # Switch Mode: back to mode selection, still logged in
+            elif choice == "9":
                 auth.logout()
                 return
             else:
@@ -494,11 +496,13 @@ def requests_overview_menu_loop(request_service):
             elif choice == "2":
                 request_service.admin_view_all_reservations()
             elif choice == "3":
-                request_service.admin_expire_reservation()
+                request_service.admin_review_pending_requests()
             elif choice == "4":
+                request_service.admin_expire_reservation()
+            elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                print("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
         pause()
@@ -683,6 +687,7 @@ def main():
             sys.exit(0)
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+
 
         pause()
 

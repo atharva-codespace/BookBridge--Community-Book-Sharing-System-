@@ -207,7 +207,7 @@ class Book:
     def update_availability(cls, book_id, availability):
         db = Database.get_instance()
         db.execute_query(
-            "UPDATE Books SET Availability = %s WHERE book_name = %s",
+            "UPDATE Books SET Availability = %s WHERE Title = %s",
             (availability, book_id), commit=True,
         )
 

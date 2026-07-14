@@ -99,9 +99,9 @@ def show_buyer_dashboard(username):
     print("4. Wishlist")
     print("5. My Requests & Reservations")
     print("6. Reviews & Ratings")
-    # print("7. Notifications")
-    print("7. Switch Mode (Buy / Sell)")
-    print("8. Logout")
+    print("7. Notifications")
+    print("8. Switch Mode (Buy / Sell)")
+    print("9. Logout")
 
 
 def show_marketplace_menu():
@@ -215,8 +215,9 @@ def show_requests_overview_menu():
     print("\n--- REQUESTS & RESERVATIONS OVERVIEW ---")
     print("1. View All Requests")
     print("2. View All Reservations")
-    print("3. Force-Expire Reservation")
-    print("4. Back")
+    print("3. Review Pending Book Requests (Approve / Reject)")
+    print("4. Force-Expire Reservation")
+    print("5. Back")
 
 
 def show_reports_menu():

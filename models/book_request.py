@@ -23,11 +23,12 @@ class BookRequest:
     """Represents a single row from the Book_Requests table plus all CRUD operations."""
 
     def __init__(self, request_id=None, book_name=None, user_id=None,
-                request_date=None):
+                request_date=None, status=None):
         self.request_id = request_id
         self.book_name = book_name
         self.user_id = user_id
         self.request_date = request_date
+        self.status = status
 
     @staticmethod
     def _row_to_request(row):
@@ -38,6 +39,7 @@ class BookRequest:
             book_name=row.get("book_name"),
             user_id=row.get("user_id"),
             request_date=row.get("request_date"),
+            status=row.get("status"),
         )
 
     _SELECT_WITH_NAMES = """
@@ -51,14 +53,14 @@ class BookRequest:
 
     # ==================== CREATE ====================
     @classmethod
-    def  create(cls, book_name, user_id):
+    def  create(cls, book_name, user_id, status="Pending"):
         db = Database.get_instance()
         date_today = date.today()
         query = """
-            INSERT INTO requests (book_name, user_ID, request_date)
-            VALUES (%s, %s, %s)
+            INSERT INTO requests (book_name, user_ID, request_date, status)
+            VALUES (%s, %s, %s, %s)
         """
-        return db.execute_query(query, (book_name, user_id, date_today), commit=True)
+        return db.execute_query(query, (book_name, user_id, date_today, status), commit=True)
 
     # ==================== READ ====================
     @classmethod
@@ -98,3 +100,32 @@ class BookRequest:
             (book_id, requester_id),
         )
         return cls._row_to_request(row)
+
+    @classmethod
+    def get_pending(cls):
+        """All requests awaiting an admin decision (admin approval queue)."""
+        db = Database.get_instance()
+        rows = db.fetch_all(
+            "SELECT * from requests WHERE status = %s ORDER BY Request_ID DESC",
+            ("Pending",),
+        )
+        return [cls._row_to_request(r) for r in rows]
+
+    @classmethod
+    def has_pending_request(cls, book_name):
+        """Blocks a second request for the same book while one is awaiting admin decision."""
+        db = Database.get_instance()
+        row = db.fetch_one(
+            "SELECT * FROM requests WHERE book_name = %s AND status = %s",
+            (book_name, "Pending"),
+        )
+        return cls._row_to_request(row)
+
+    # ==================== UPDATE ====================
+    @classmethod
+    def update_status(cls, request_id, status):
+        db = Database.get_instance()
+        db.execute_query(
+            "UPDATE requests SET status = %s WHERE Request_ID = %s",
+            (status, request_id), commit=True,
+        )

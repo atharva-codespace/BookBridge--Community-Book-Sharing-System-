@@ -7,10 +7,17 @@ import smtplib
 import os
 from email.message import EmailMessage
 
+from utils.email_sender import SENDER_EMAIL, APP_PASSWORD
+
 
 def send_report_email(receiver, pdf_path, report_title):
-    sender = os.environ.get("GMAIL_USER")
-    password = os.environ.get("GMAIL_APP_PASSWORD")
+    # NOTE: previously read GMAIL_USER / GMAIL_APP_PASSWORD from the
+    # environment, but those variables are never set anywhere in this
+    # project, so sender/password were always None and login always failed.
+    # Reuse the same Gmail credentials already used (and working) for OTP
+    # emails in utils/email_sender.py instead.
+    sender = SENDER_EMAIL
+    password = APP_PASSWORD
 
     msg = EmailMessage()
     msg["Subject"] = f"BookBridge {report_title} Report"

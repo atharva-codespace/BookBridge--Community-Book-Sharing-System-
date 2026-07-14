@@ -29,11 +29,11 @@ class Notification:
         if not row:
             return None
         return Notification(
-            notification_id=row.get("Notification_ID"),
-            user_id=row.get("User_ID"),
-            message=row.get("Message"),
-            status=row.get("Status"),
-            created_date=row.get("Created_Date"),
+            notification_id=row.get("notification_id"),
+            user_id=row.get("user_id"),
+            message=row.get("message"),
+            status=row.get("status"),
+            created_date=row.get("notification_date"),
         )
 
     # ==================== CREATE ====================
@@ -41,7 +41,7 @@ class Notification:
     def create(cls, user_id, message):
         db = Database.get_instance()
         return db.execute_query(
-            "INSERT INTO Notifications (User_ID, Message) VALUES (%s, %s)",
+            "INSERT INTO notifications (user_id, message) VALUES (%s, %s)",
             (user_id, message), commit=True,
         )
 
@@ -50,7 +50,7 @@ class Notification:
     def get_by_user(cls, user_id):
         db = Database.get_instance()
         rows = db.fetch_all(
-            "SELECT * FROM Notifications WHERE User_ID = %s ORDER BY Notification_ID DESC",
+            "SELECT * FROM notifications WHERE user_id = %s ORDER BY notification_id DESC",
             (user_id,),
         )
         return [cls._row_to_notification(r) for r in rows]
@@ -59,7 +59,7 @@ class Notification:
     def count_unread(cls, user_id):
         db = Database.get_instance()
         row = db.fetch_one(
-            "SELECT COUNT(*) AS total FROM Notifications WHERE User_ID = %s AND Status = 'Unread'",
+            "SELECT COUNT(*) AS total FROM notifications WHERE user_id = %s AND status IS NULL",
             (user_id,),
         )
         return row["total"] if row else 0
@@ -69,6 +69,6 @@ class Notification:
     def mark_read(cls, notification_id):
         db = Database.get_instance()
         db.execute_query(
-            "UPDATE Notifications SET Status = 'Read' WHERE Notification_ID = %s",
+            "UPDATE notifications SET status = 'Read' WHERE notification_id = %s",
             (notification_id,), commit=True,
         )

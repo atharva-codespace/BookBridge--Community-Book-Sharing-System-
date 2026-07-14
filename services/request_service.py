@@ -16,17 +16,19 @@ later resolved via Complete (book flips to its final status) or Cancel
 (book reverts to Available). Either action notifies the book's owner.
 """
 
+from models.admin import Admin
 from models.book import Book
 from models.book_request import BookRequest
 from models.notification import Notification
 from models.reservation import Reservation
 from models.wishlist import Wishlist
+from utils.email_sender import send_admin_request_email
 from utils.helpers import confirm_action, print_table
 
 WISHLIST_FIELDS = ["Wishlist_ID", "Book_Title"]
-REQUEST_FIELDS = ["Request_ID", "Book_Title", "Request_Date"]
+REQUEST_FIELDS = ["Request_ID", "Book_Title", "Request_Date", "Status"]
 RESERVATION_FIELDS = ["Reservation_ID", "Book_name", "Expiry_date", "Status"]
-NOTIFICATION_FIELDS = ["Notification_ID", "Message", "Status", "Created_Date"]
+NOTIFICATION_FIELDS = ["Notification_ID", "Message", "status"]
 
 AVAILABILITY_ON_FULFILL = {
     "Sale": "Sold",
@@ -42,7 +44,8 @@ def _wishlist_to_row(w):
 
 def _request_to_row(r):
     return {"Request_ID": r.request_id, "Book_Title": r.book_name,
-            "Requester_Name": r.user_id, "Request_Date": r.request_date}
+            "Requester_Name": r.user_id, "Request_Date": r.request_date,
+            "Status": r.status}
 
 
 def _reservation_to_row(r):
@@ -51,8 +54,7 @@ def _reservation_to_row(r):
 
 
 def _notification_to_row(n):
-    return {"Notification_ID": n.notification_id, "Message": n.message,
-            "Status": n.status, "Created_Date": n.created_date}
+    return {"Notification_ID": n.notification_id, "Message": n.message, "status":n.status}
 
 
 def _availability_block_message(availability):
@@ -101,22 +103,34 @@ class RequestService:
         entries = Wishlist.get_by_user(self.session.user_id)
         print_table([_wishlist_to_row(w) for w in entries], headers=WISHLIST_FIELDS, title="MY WISHLIST")
 
-    # ==================== REQUEST BOOK (instant, no approval) ====================
+    # ==================== REQUEST BOOK (needs admin approval) ====================
     def request_book(self):
         book = self._select_available_book()
         if not book:
             return
 
+        if BookRequest.has_pending_request(book.title):
+            print("This book already has a pending request awaiting admin approval.")
+            return
+
         message = input("Message to the owner (optional): ").strip() or None
         BookRequest.create(book.title, self.session.user_id)
 
-        final_status = AVAILABILITY_ON_FULFILL.get(book.listing_type, "Sold")
-        Book.update_availability(book.book_id, final_status)
-        # Notification.create(
-        #     book.owner_id,
-        #     f"'{book.title}' was requested by {self.session.full_name} and marked as {final_status}.",
-        # )
-        print(f"Request successful. '{book.title}' is now {final_status}.")
+        self._notify_admins_of_pending_request(book.title)
+        print(f"Request submitted for '{book.title}'. An admin will review it and you'll be "
+              f"notified once it's approved or rejected.")
+
+    def _notify_admins_of_pending_request(self, book_title):
+        """Emails every active admin so they can approve/reject the request from
+        Admin Dashboard -> Requests & Reservations Overview -> Review Pending Book Requests."""
+        admins = Admin.get_all()
+        for admin in admins:
+            if admin.account_status != "Active" or not admin.email:
+                continue
+            try:
+                send_admin_request_email(admin.email, self.session.full_name, book_title)
+            except Exception as e:
+                print(f"(Could not email admin {admin.email}: {e})")
 
     def view_my_sent_requests(self):
         requests = BookRequest.get_sent_by_user(self.session.user_id)
@@ -245,3 +259,45 @@ class RequestService:
         Reservation.update_status(reservation.reservation_id, "Expired")
         Book.update_availability(reservation.book_id, "Available")
         print("Reservation expired. The book is available again.")
+
+    def admin_review_pending_requests(self):
+        """Lets an admin approve or reject a book request. Only on approval does
+        the book's availability actually change and the requester get notified."""
+        pending = BookRequest.get_pending()
+        print_table([_request_to_row(r) for r in pending], headers=REQUEST_FIELDS,
+                    title="PENDING BOOK REQUESTS")
+        if not pending:
+            return
+
+        rid = input("Enter Request ID to review (or press Enter to go back): ").strip()
+        if not rid:
+            return
+        if not rid.isdigit():
+            print("Invalid Request ID.")
+            return
+
+        request = BookRequest.get_by_id(int(rid))
+        if not request or request.status != "Pending":
+            print("No pending request with that ID.")
+            return
+
+        book = Book.get_by_id(request.book_name)
+        if not book:
+            print("The book for this request could not be found. Rejecting the request.")
+            BookRequest.update_status(request.request_id, "Rejected")
+            Notification.create(request.user_id, f"Your request for '{request.book_name}' was rejected.")
+            return
+
+        if not confirm_action(f"Approve request for '{book.title}' from user #{request.user_id}?"):
+            BookRequest.update_status(request.request_id, "Rejected")
+            Notification.create(request.user_id, f"Your request for '{book.title}' was rejected by the admin.")
+            print("Request rejected. The requester has been notified.")
+            return
+
+        final_status = AVAILABILITY_ON_FULFILL.get(book.listing_type, "Sold")
+        Book.update_availability(book.title, final_status)
+        BookRequest.update_status(request.request_id, "Approved")
+        Notification.create(
+            request.user_id,
+            f"Your request for '{book.title}' was approved. It is now marked as {final_status}. The Phone No. of Seller is:{book.phone}",)
+        print(f"Request approved. '{book.title}' is now {final_status} and the requester has been notified.")
