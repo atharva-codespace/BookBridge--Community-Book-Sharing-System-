@@ -19,6 +19,10 @@ class Authorization:
         return session.is_authenticated and session.user_type == "user"
 
     @staticmethod
+    def is_delivery_boy(session) -> bool:
+        return session.is_authenticated and session.user_type == "delivery_boy"
+
+    @staticmethod
     def require_admin(session) -> bool:
         """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
         if not Authorization.is_admin(session):
@@ -30,6 +34,14 @@ class Authorization:
     def require_user(session) -> bool:
         """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
         if not Authorization.is_user(session):
+            print("\nACCESS DENIED")
+            return False
+        return True
+
+    @staticmethod
+    def require_delivery_boy(session) -> bool:
+        """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
+        if not Authorization.is_delivery_boy(session):
             print("\nACCESS DENIED")
             return False
         return True

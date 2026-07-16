@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from database.db import Database
 
 RESERVATION_VALIDITY_DAYS = 7
+MAX_RESERVATION_DAYS = 3
 
 
 class Reservation:
@@ -51,9 +52,11 @@ class Reservation:
 
     # ==================== CREATE ====================
     @classmethod
-    def create(cls, book_title, user_id):
+    def create(cls, book_title, user_id, days=MAX_RESERVATION_DAYS):
+        """`days` is the user-chosen reservation length (capped at
+        MAX_RESERVATION_DAYS by the caller before this is invoked)."""
         db = Database.get_instance()
-        expiry_date = date.today() + timedelta(days=RESERVATION_VALIDITY_DAYS)
+        expiry_date = date.today() + timedelta(days=days)
         query = """
             INSERT INTO reservations (book_name, user_id, expiry_date, status)
             VALUES (%s, %s, %s, 'Active')

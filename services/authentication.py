@@ -8,6 +8,7 @@ duration of the running console application (Session Management).
 from datetime import datetime
 from models.user import User
 from models.admin import Admin
+from models.delivery_boy import DeliveryBoy
 from utils.hashing import Hashing
 from database.db import Database
 
@@ -50,6 +51,16 @@ class Session:
         self.full_name = admin.full_name
         self.role = None
         self.admin_level = admin.admin_level
+        self.login_history_id = None
+
+    def login_as_delivery_boy(self, delivery_boy: DeliveryBoy):
+        self.is_authenticated = True
+        self.user_type = "delivery_boy"
+        self.user_id = delivery_boy.delivery_boy_id
+        self.username = delivery_boy.username
+        self.full_name = delivery_boy.full_name
+        self.role = None
+        self.admin_level = None
         self.login_history_id = None
 
     def logout(self):
@@ -118,6 +129,31 @@ class Authentication:
 
             self.session.login_as_admin(admin)
             print(f"\nAdmin login successful. Welcome, {admin.full_name}!")
+            return True
+
+        except Exception as e:
+            print(f"An error occurred during login: {e}")
+            return False
+
+    # ==================== DELIVERY BOY LOGIN ====================
+    def login_delivery_boy(self, identifier: str, password: str) -> bool:
+        """Logs a delivery boy in using their Username or Email."""
+        try:
+            delivery_boy = DeliveryBoy.get_by_username_or_email(identifier)
+            if delivery_boy is None:
+                print("Login failed: No delivery boy account found with that username/email.")
+                return False
+
+            if delivery_boy.account_status != "Active":
+                print("Login failed: This delivery boy account is Inactive.")
+                return False
+
+            if not Hashing.verify_password(password, delivery_boy.password_hash):
+                print("Login failed: Incorrect password.")
+                return False
+
+            self.session.login_as_delivery_boy(delivery_boy)
+            print(f"\nDelivery boy login successful. Welcome, {delivery_boy.full_name}!")
             return True
 
         except Exception as e:

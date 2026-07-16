@@ -16,16 +16,22 @@ later resolved via Complete (book flips to its final status) or Cancel
 (book reverts to Available). Either action notifies the book's owner.
 """
 
+from datetime import date, timedelta
+
 from models.admin import Admin
 from models.book import Book
 from models.book_request import BookRequest
+from models.delivery import Delivery
 from models.notification import Notification
-from models.reservation import Reservation
+from models.reservation import Reservation, MAX_RESERVATION_DAYS
+from models.user import User
 from models.wishlist import Wishlist
 from utils.email_sender import send_admin_request_email
 from utils.helpers import confirm_action, print_table
 
-WISHLIST_FIELDS = ["Wishlist_ID", "Book_Title"]
+DELIVERY_LEAD_DAYS = 2
+
+WISHLIST_FIELDS = ["Wishlist_ID", "Book_Title", "Price"]
 REQUEST_FIELDS = ["Request_ID", "Book_Title", "Request_Date", "Status"]
 RESERVATION_FIELDS = ["Reservation_ID", "Book_name", "Expiry_date", "Status"]
 NOTIFICATION_FIELDS = ["Notification_ID", "Message", "status"]
@@ -37,9 +43,8 @@ AVAILABILITY_ON_FULFILL = {
 }
 
 
-def _wishlist_to_row(w):
-    return {"Wishlist_ID": w.wishlist_id, "Book_Title": w.book_title,
-            }
+def _wishlist_to_row(w, price=None):
+    return {"Wishlist_ID": w.wishlist_id, "Book_Title": w.book_title, "Price": price}
 
 
 def _request_to_row(r):
@@ -101,24 +106,76 @@ class RequestService:
 
     def view_wishlist(self):
         entries = Wishlist.get_by_user(self.session.user_id)
-        print_table([_wishlist_to_row(w) for w in entries], headers=WISHLIST_FIELDS, title="MY WISHLIST")
+        rows = []
+        for w in entries:
+            book = Book.search_book(w.book_title)
+            rows.append(_wishlist_to_row(w, price=book.price if book else "N/A"))
+        print_table(rows, headers=WISHLIST_FIELDS, title="MY WISHLIST")
+
+    def buy_from_wishlist(self):
+        """Lets the user submit a purchase request straight from a wishlist entry,
+        instead of having to re-type the book name under Request Book."""
+        entries = Wishlist.get_by_user(self.session.user_id)
+        if not entries:
+            print("Your wishlist is empty.")
+            return
+        rows = []
+        for w in entries:
+            book = Book.search_book(w.book_title)
+            rows.append(_wishlist_to_row(w, price=book.price if book else "N/A"))
+        print_table(rows, headers=WISHLIST_FIELDS, title="MY WISHLIST")
+
+        bname = input("Enter the Book Title (from above) to buy: ").strip()
+        entry = next((w for w in entries if w.book_title.lower() == bname.lower()), None)
+        if not entry:
+            print("That title isn't in your wishlist.")
+            return
+
+        book = Book.search_book(entry.book_title)
+        if not book:
+            print("This book is no longer available.")
+            return
+        if book.owner_id == self.session.user_id:
+            print("You cannot buy your own book listing.")
+            return
+
+        if book.availability == "Available":
+            self._submit_request_for_book(book)
+            return
+        if book.availability == "Reserved":
+            self._handle_unavailable_book(book, _availability_block_message(book.availability))
+            self._submit_request_for_book(book, is_competing_claim=True)
+            return
+        print(_availability_block_message(book.availability))
 
     # ==================== REQUEST BOOK (needs admin approval) ====================
     def request_book(self):
-        book = self._select_available_book()
+        book, is_competing_claim = self._select_book_for_request()
         if not book:
             return
+        self._submit_request_for_book(book, is_competing_claim=is_competing_claim)
 
+    def _submit_request_for_book(self, book, is_competing_claim=False):
+        """Shared by 'Request Book' and 'Buy From Wishlist' - creates the Pending
+        request and emails admins for approval. `is_competing_claim` is True when
+        the book is currently Reserved by someone else and this requester wants
+        to buy it immediately - see _select_book_for_request()."""
         if BookRequest.has_pending_request(book.title):
             print("This book already has a pending request awaiting admin approval.")
             return
 
-        message = input("Message to the owner (optional): ").strip() or None
+        input("Message to the owner (optional): ").strip()
         BookRequest.create(book.title, self.session.user_id)
 
         self._notify_admins_of_pending_request(book.title)
-        print(f"Request submitted for '{book.title}'. An admin will review it and you'll be "
-              f"notified once it's approved or rejected.")
+        if is_competing_claim:
+            print(f"Your request for '{book.title}' has been queued. It's currently reserved by "
+                  f"another user - we've told them you want to buy it right now. If they buy it "
+                  f"first, your request will be automatically rejected. If they release it (or "
+                  f"don't act in time), an admin will review and can approve your request instead.")
+        else:
+            print(f"Request submitted for '{book.title}'. An admin will review it and you'll be "
+                  f"notified once it's approved or rejected.")
 
     def _notify_admins_of_pending_request(self, book_title):
         """Emails every active admin so they can approve/reject the request from
@@ -148,30 +205,94 @@ class RequestService:
         if not book:
             return
 
-        Reservation.create(book.title, self.session.user_id)
-        Book.update_availability(book.book_id, "Reserved")
+        days_input = input(
+            f"Reserve for how many days (1-{MAX_RESERVATION_DAYS}, max {MAX_RESERVATION_DAYS}): "
+        ).strip()
+        if not days_input.isdigit() or not (1 <= int(days_input) <= MAX_RESERVATION_DAYS):
+            print(f"Invalid duration. Please enter a whole number between 1 and {MAX_RESERVATION_DAYS}.")
+            return
+        days = int(days_input)
+
+        Reservation.create(book.title, self.session.user_id, days=days)
+        Book.update_availability(book.title, "Reserved")
         # Notification.create(
         #     book.owner_id,
         #     f"'{book.title}' was reserved by {self.session.full_name}.",
         # )
-        print(f"'{book.title}' has been reserved for you.")
+        print(f"'{book.title}' has been reserved for you for {days} day(s).")
 
     def _select_available_book(self):
+        """Used by 'Reserve Book': strictly requires the book to currently be
+        Available. You can't reserve a book someone else already has reserved -
+        see _select_book_for_request() for the Request-side competing-claim flow."""
         bname = input("Enter Book Name: ").strip()
-        
+
         book = Book.search_by_availability(bname)
         if not book:
             print("Book not found.")
             return None
-        
+
         if book.owner_id == self.session.user_id:
             print("You cannot request or reserve your own book listing.")
             return None
         block_reason = _availability_block_message(book.availability)
         if block_reason:
-            print(block_reason)
+            self._handle_unavailable_book(book, block_reason)
             return None
         return book
+
+    def _select_book_for_request(self):
+        """Used by 'Request Book' / 'Buy From Wishlist'. Unlike
+        _select_available_book(), a book that is currently Reserved by someone
+        else is NOT a dead end here: the requester's claim is allowed through
+        as a 'competing claim' (returned as (book, True)) so User 2 can buy it
+        via Request if the reservation holder doesn't buy it first. A book
+        that's already Sold/Donated/Exchanged is still a hard block."""
+        bname = input("Enter Book Name: ").strip()
+
+        book = Book.search_book(bname)
+        if not book:
+            print("Book not found.")
+            return None, False
+
+        if book.owner_id == self.session.user_id:
+            print("You cannot request your own book listing.")
+            return None, False
+
+        if book.availability == "Available":
+            return book, False
+
+        if book.availability == "Reserved":
+            self._handle_unavailable_book(book, _availability_block_message(book.availability))
+            return book, True
+
+        print(_availability_block_message(book.availability))
+        return None, False
+
+    def _handle_unavailable_book(self, book, block_reason):
+        """When a book can't be reserved (or is being requested while reserved)
+        because someone else already has it Reserved, let that person know a
+        second buyer is interested and ready to buy right now, so they can
+        decide to buy now (Complete Reservation) or release it (Cancel
+        Reservation) instead of just letting the 2nd user hit a dead end."""
+        print(block_reason)
+        if book.availability != "Reserved":
+            return
+
+        reservation = Reservation.get_by_id(book.title)
+        if not reservation or reservation.status != "Active":
+            return
+
+        Notification.create(
+            reservation.user_id,
+            f"Another user wants to buy '{book.title}' right now. BUY THIS BOOK NOW: go to "
+            f"My Requests & Reservations > Complete Reservation to claim it before they do. "
+            f"Otherwise, do nothing (or use Cancel Reservation to release it early) and the "
+            f"other user will be able to get it - your reservation otherwise holds until "
+            f"{reservation.expiry_date}.",
+        )
+        print(f"'{book.title}' is currently reserved by another user until {reservation.expiry_date}. "
+              f"We've notified them that you want to buy it immediately.")
 
     # ==================== RESERVATIONS ====================
     def view_my_reservations(self):
@@ -192,7 +313,11 @@ class RequestService:
         book = Book.get_by_id(reservation.book_name)
         Reservation.update_status(reservation.reservation_id, "Completed")
         new_status = AVAILABILITY_ON_FULFILL.get(book.availability, "Sold")
-        Book.update_availability(reservation.book_id, new_status)
+        Book.update_availability(reservation.book_name, new_status)
+        # Anyone who filed a competing request while this book was Reserved
+        # (i.e. wanted to "buy it now" via Request) has lost the race - reject
+        # their pending request instead of leaving it to an admin to notice.
+        self._reject_competing_requests(book.title, reason="another user (the reservation holder) bought it first")
         print(f"Reservation completed. Book marked as '{new_status}'.")
 
     def cancel_reservation(self):
@@ -201,7 +326,33 @@ class RequestService:
             return
         Reservation.update_status(reservation.reservation_id, "Cancelled")
         Book.update_availability(reservation.book_name, "Available")
+        # If someone filed a competing request while this book was Reserved,
+        # let them know it's now free and an admin will review their request.
+        self._notify_pending_requesters_book_available(reservation.book_name)
         print("Reservation cancelled. The book is available again.")
+
+    def _reject_competing_requests(self, book_title, reason):
+        """Auto-rejects any Pending request(s) for a book once it's no longer
+        obtainable (the reservation holder bought it), and notifies those
+        requesters instead of leaving their request stuck as Pending forever."""
+        for req in BookRequest.get_pending():
+            if req.book_name == book_title:
+                BookRequest.update_status(req.request_id, "Rejected")
+                Notification.create(
+                    req.user_id,
+                    f"Your request for '{book_title}' was rejected because {reason}.",
+                )
+
+    def _notify_pending_requesters_book_available(self, book_title):
+        """Lets anyone with a Pending request on a book know its reservation
+        was released, so they know an admin can now approve their request."""
+        for req in BookRequest.get_pending():
+            if req.book_name == book_title:
+                Notification.create(
+                    req.user_id,
+                    f"'{book_title}' is available again - its reservation was released. "
+                    f"An admin will review your pending request.",
+                )
 
     def _select_own_active_reservation(self):
         rbook = input("Enter Reserved Book Name: ").strip()
@@ -257,7 +408,7 @@ class RequestService:
             print("Cancelled.")
             return
         Reservation.update_status(reservation.reservation_id, "Expired")
-        Book.update_availability(reservation.book_id, "Available")
+        Book.update_availability(reservation.book_name, "Available")
         print("Reservation expired. The book is available again.")
 
     def admin_review_pending_requests(self):
@@ -288,6 +439,33 @@ class RequestService:
             Notification.create(request.user_id, f"Your request for '{request.book_name}' was rejected.")
             return
 
+        if book.availability in ("Sold", "Donated", "Exchanged"):
+            print(f"'{book.title}' is already {book.availability.lower()} - this request can "
+                  f"no longer be fulfilled. Rejecting it.")
+            BookRequest.update_status(request.request_id, "Rejected")
+            Notification.create(
+                request.user_id,
+                f"Your request for '{book.title}' was rejected because it is no longer available.",
+            )
+            return
+
+        if book.availability == "Reserved":
+            reservation = Reservation.get_by_id(book.title)
+            if reservation and reservation.status == "Active" and reservation.user_id != request.user_id:
+                print(f"Note: '{book.title}' is still actively reserved by another user until "
+                      f"{reservation.expiry_date} (this requester wants to buy it now - a "
+                      f"competing claim).")
+                if not confirm_action("Approve this request anyway and override that reservation?"):
+                    print("Left pending - review again once the reservation is completed, "
+                          "cancelled, or force-expired.")
+                    return
+                Reservation.update_status(reservation.reservation_id, "Cancelled")
+                Notification.create(
+                    reservation.user_id,
+                    f"Your reservation for '{book.title}' was overridden by an admin because "
+                    f"another user's request was approved instead.",
+                )
+
         if not confirm_action(f"Approve request for '{book.title}' from user #{request.user_id}?"):
             BookRequest.update_status(request.request_id, "Rejected")
             Notification.create(request.user_id, f"Your request for '{book.title}' was rejected by the admin.")
@@ -297,7 +475,33 @@ class RequestService:
         final_status = AVAILABILITY_ON_FULFILL.get(book.listing_type, "Sold")
         Book.update_availability(book.title, final_status)
         BookRequest.update_status(request.request_id, "Approved")
+
+        delivery_date = date.today() + timedelta(days=DELIVERY_LEAD_DAYS)
         Notification.create(
             request.user_id,
-            f"Your request for '{book.title}' was approved. It is now marked as {final_status}. The Phone No. of Seller is:{book.phone}",)
-        print(f"Request approved. '{book.title}' is now {final_status} and the requester has been notified.")
+            f"Your request for '{book.title}' was approved. It is now marked as {final_status}. "
+            f"Expected delivery date: {delivery_date}.",
+        )
+        self._create_delivery_record(request, book, delivery_date)
+        print(f"Request approved. '{book.title}' is now {final_status}, delivery is expected "
+              f"{delivery_date}, and the requester has been notified.")
+
+    def _create_delivery_record(self, request, book, delivery_date):
+        """Creates the unassigned Delivery row an admin will later hand to a
+        delivery boy (Admin Dashboard -> Delivery Management -> Assign Delivery Boy)."""
+        requester = User.get_by_id(request.user_id)
+        try:
+            Delivery.create(
+                request_id=request.request_id,
+                book_name=book.title,
+                requester_id=request.user_id,
+                pickup_name=book.seller_name,
+                pickup_phone=book.phone,
+                pickup_location=book.location,
+                drop_name=requester.full_name if requester else None,
+                drop_phone=requester.phone_number if requester else None,
+                drop_location=requester.location if requester else None,
+                expected_delivery_date=delivery_date,
+            )
+        except Exception as e:
+            print(f"(Could not create a delivery record: {e})")

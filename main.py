@@ -35,6 +35,8 @@ from services.book_management import BookManagement
 from services.review_service import ReviewService
 from services.request_service import RequestService
 from services.report_service import ReportService
+from services.delivery_management import DeliveryManagement
+from services.delivery_service import DeliveryService
 from services.authorization import Authorization
 from services.validation import Validation
 from utils.hashing import Hashing
@@ -60,6 +62,8 @@ from utils.menus import (
     show_reviews_mod_menu,
     show_requests_overview_menu,
     show_reports_menu,
+    show_delivery_mgmt_menu,
+    show_delivery_boy_dashboard,
 )
 from utils.helpers import pause, get_non_empty_input
 
@@ -148,9 +152,14 @@ def notifications_menu_loop(request_service):
             elif choice == "2":
                 request_service.mark_notification_read()
             elif choice == "3":
+                # Lets someone act on a "buy this book now" notification right
+                # here instead of having to separately go to My Requests &
+                # Reservations - same underlying action as Complete Reservation.
+                request_service.complete_reservation()
+            elif choice == "4":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                print("Invalid choice. Please select a valid menu option (1-4).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
@@ -213,9 +222,11 @@ def wishlist_menu_loop(request_service):
             elif choice == "3":
                 request_service.view_wishlist()
             elif choice == "4":
+                request_service.buy_from_wishlist()
+            elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                print("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
         pause()
@@ -519,9 +530,51 @@ def reports_menu_loop(report_service):
             elif choice == "2":
                 report_service.show_book_report()
             elif choice == "3":
+                report_service.show_requests_report()
+            elif choice == "4":
+                report_service.show_reservations_report()
+            elif choice == "5":
+                report_service.show_reviews_report()
+            elif choice == "6":
+                report_service.show_wishlist_report()
+            elif choice == "7":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                print("Invalid choice. Please select a valid menu option (1-7).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        pause()
+
+
+# ======================================================================
+# DELIVERY MANAGEMENT (admin submenu)
+# ======================================================================
+def delivery_mgmt_menu_loop(delivery_mgmt):
+    while True:
+        show_delivery_mgmt_menu()
+        choice = input("Enter choice: ").strip()
+        try:
+            if choice == "1":
+                delivery_mgmt.register_delivery_boy()
+            elif choice == "2":
+                delivery_mgmt.view_delivery_boys()
+            elif choice == "3":
+                delivery_mgmt.activate_delivery_boy()
+            elif choice == "4":
+                delivery_mgmt.deactivate_delivery_boy()
+            elif choice == "5":
+                delivery_mgmt.delete_delivery_boy()
+            elif choice == "6":
+                delivery_mgmt.view_unassigned_deliveries()
+            elif choice == "7":
+                delivery_mgmt.assign_delivery_boy()
+            elif choice == "8":
+                delivery_mgmt.view_all_deliveries()
+            elif choice == "9":
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-9).")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
         pause()
@@ -538,6 +591,7 @@ def admin_dashboard_loop(session, auth):
     review_service = ReviewService(session)
     request_service = RequestService(session)
     report_service = ReportService(session)
+    delivery_mgmt = DeliveryManagement(session)
 
     while True:
         if not Authorization.require_admin(session):
@@ -558,14 +612,51 @@ def admin_dashboard_loop(session, auth):
             elif choice == "5":
                 reports_menu_loop(report_service)
             elif choice == "6":
+                delivery_mgmt_menu_loop(delivery_mgmt)
+            elif choice == "7":
                 auth.logout()
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-6).")
+                print("Invalid choice. Please select a valid menu option (1-7).")
                 pause()
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             pause()
+
+
+# ======================================================================
+# DELIVERY BOY DASHBOARD (top-level)
+# ======================================================================
+def delivery_boy_dashboard_loop(session, auth):
+    """Displays the Delivery Boy Dashboard: view assigned deliveries and move
+    each one through Picked Up -> Delivered."""
+    delivery_service = DeliveryService(session)
+
+    while True:
+        if not Authorization.require_delivery_boy(session):
+            return
+
+        show_delivery_boy_dashboard(session.username)
+        choice = input("Enter choice: ").strip()
+
+        try:
+            if choice == "1":
+                delivery_service.view_my_deliveries()
+            elif choice == "2":
+                delivery_service.mark_picked_up()
+            elif choice == "3":
+                delivery_service.mark_delivered()
+            elif choice == "4":
+                auth.logout()
+                return
+            else:
+                print("Invalid choice. Please select a valid menu option (1-4).")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        if not session.is_authenticated:
+            return
+        pause()
 
 
 # ======================================================================
@@ -671,15 +762,21 @@ def main():
                     admin_dashboard_loop(session, auth)
 
             elif choice == "3":
-                registration.register_user()
+                identifier = get_non_empty_input("Delivery Boy Username or Email: ")
+                password = input("Password: ").strip()
+                if auth.login_delivery_boy(identifier, password):
+                    delivery_boy_dashboard_loop(session, auth)
 
             elif choice == "4":
+                registration.register_user()
+
+            elif choice == "5":
                 print("\nThank you for using Book Bank Management System. Goodbye!")
                 Database.get_instance().close()
                 sys.exit(0)
 
             else:
-                print("Invalid choice. Please select 1-4.")
+                print("Invalid choice. Please select 1-5.")
 
         except KeyboardInterrupt:
             print("\n\nProgram interrupted. Exiting safely...")

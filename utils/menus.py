@@ -42,8 +42,9 @@ def show_main_menu():
     print("==============================")
     print("1. Login as User")
     print("2. Login as Administrator")
-    print("3. Register New User")
-    print("4. Exit")
+    print("3. Login as Delivery Boy")
+    print("4. Register New User")
+    print("5. Exit")
 
 
 # ======================================================================
@@ -83,7 +84,8 @@ def show_notifications_menu():
     print("\n--- NOTIFICATIONS ---")
     print("1. View Notifications")
     print("2. Mark Notification As Read")
-    print("3. Back")
+    print("3. Buy This Book Now (Complete Reservation)")
+    print("4. Back")
 
 
 # ======================================================================
@@ -123,7 +125,8 @@ def show_wishlist_menu():
     print("1. Add Book To Wishlist")
     print("2. Remove Book From Wishlist")
     print("3. View Wishlist")
-    print("4. Back")
+    print("4. Buy Book From Wishlist")
+    print("5. Back")
 
 
 def show_my_requests_reservations_menu():
@@ -180,7 +183,8 @@ def show_admin_dashboard(username):
     print("3. Reviews Moderation")
     print("4. Requests & Reservations Overview")
     print("5. See All Reports")
-    print("6. Logout")
+    print("6. Delivery Management")
+    print("7. Logout")
 
 
 def show_user_mgmt_menu():
@@ -224,4 +228,37 @@ def show_reports_menu():
     print("\n--- SEE ALL REPORTS ---")
     print("1. Users Report (view graph + email PDF to me)")
     print("2. Books Report (view graph + email PDF to me)")
-    print("3. Back")
+    print("3. Requests Report (view graph + email PDF to me)")
+    print("4. Reservations Report (view graph + email PDF to me)")
+    print("5. Reviews Report (view graph + email PDF to me)")
+    print("6. Wishlist Report (view graph + email PDF to me)")
+    print("7. Back")
+
+
+# ======================================================================
+# DELIVERY MANAGEMENT (admin submenu)
+# ======================================================================
+def show_delivery_mgmt_menu():
+    print("\n--- DELIVERY MANAGEMENT ---")
+    print("1. Register Delivery Boy")
+    print("2. View Delivery Boys")
+    print("3. Activate Delivery Boy")
+    print("4. Deactivate Delivery Boy")
+    print("5. Delete Delivery Boy")
+    print("6. View Unassigned Deliveries")
+    print("7. Assign Delivery Boy To A Delivery")
+    print("8. View All Deliveries")
+    print("9. Back")
+
+
+# ======================================================================
+# DELIVERY BOY DASHBOARD
+# ======================================================================
+def show_delivery_boy_dashboard(username):
+    print(f"\n========================")
+    print(f" DELIVERY BOY DASHBOARD ({username})")
+    print(f"========================")
+    print("1. View My Deliveries")
+    print("2. Mark Delivery As Picked Up")
+    print("3. Mark Delivery As Delivered")
+    print("4. Logout")

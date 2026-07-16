@@ -248,3 +248,41 @@ CREATE TABLE Notifications (
         REFERENCES Users(User_ID)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+
+
+CREATE TABLE IF NOT EXISTS Delivery_Boys (
+    Delivery_Boy_ID  INT AUTO_INCREMENT PRIMARY KEY,
+    Full_Name        VARCHAR(100) NOT NULL,
+    Email            VARCHAR(100) NOT NULL UNIQUE,
+    Phone_Number     VARCHAR(10) NOT NULL,
+    Username         VARCHAR(50) NOT NULL UNIQUE,
+    Password_Hash    VARCHAR(255) NOT NULL,
+    Vehicle_Info     VARCHAR(100),
+    Account_Status   ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    Created_By       VARCHAR(50),
+    Created_Date     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS Deliveries (
+    Delivery_ID             INT AUTO_INCREMENT PRIMARY KEY,
+    Request_ID              INT NOT NULL,
+    Delivery_Boy_ID         INT,
+    Book_Name                VARCHAR(150) NOT NULL,
+    Requester_ID             INT NOT NULL,
+    Pickup_Name              VARCHAR(100),
+    Pickup_Phone             VARCHAR(10),
+    Pickup_Location          VARCHAR(150),
+    Drop_Name                VARCHAR(100),
+    Drop_Phone               VARCHAR(10),
+    Drop_Location            VARCHAR(150),
+    Expected_Delivery_Date   DATE,
+    Delivered_Date           DATE,
+    Status                   ENUM('Pending','Assigned','Picked Up','Delivered','Cancelled')
+                             NOT NULL DEFAULT 'Pending',
+    Created_Date             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (Delivery_Boy_ID)
+        REFERENCES Delivery_Boys(Delivery_Boy_ID)
+        ON DELETE SET NULL
+) ENGINE=InnoDB;

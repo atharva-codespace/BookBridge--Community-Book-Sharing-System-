@@ -13,10 +13,22 @@ from models.admin import Admin
 from models.analytics import (
     fetch_books_data,
     fetch_books_summary,
+    fetch_requests_data,
+    fetch_requests_summary,
+    fetch_reservations_data,
+    fetch_reservations_summary,
+    fetch_reviews_data,
+    fetch_reviews_summary,
     fetch_users_data,
     fetch_users_summary,
+    fetch_wishlist_data,
+    fetch_wishlist_summary,
     generate_books_graph,
+    generate_requests_graph,
+    generate_reservations_graph,
+    generate_reviews_graph,
     generate_users_graph,
+    generate_wishlist_graph,
 )
 from models.mail import send_report_email
 from models.reports import generate_pdf
@@ -39,6 +51,30 @@ class ReportService:
         self._show_and_email_report(
             rows_fn=fetch_books_data, summary_fn=fetch_books_summary,
             graph_fn=generate_books_graph, report_title="Book Listing",
+        )
+
+    def show_requests_report(self):
+        self._show_and_email_report(
+            rows_fn=fetch_requests_data, summary_fn=fetch_requests_summary,
+            graph_fn=generate_requests_graph, report_title="Book Requests",
+        )
+
+    def show_reservations_report(self):
+        self._show_and_email_report(
+            rows_fn=fetch_reservations_data, summary_fn=fetch_reservations_summary,
+            graph_fn=generate_reservations_graph, report_title="Reservations",
+        )
+
+    def show_reviews_report(self):
+        self._show_and_email_report(
+            rows_fn=fetch_reviews_data, summary_fn=fetch_reviews_summary,
+            graph_fn=generate_reviews_graph, report_title="Reviews & Ratings",
+        )
+
+    def show_wishlist_report(self):
+        self._show_and_email_report(
+            rows_fn=fetch_wishlist_data, summary_fn=fetch_wishlist_summary,
+            graph_fn=generate_wishlist_graph, report_title="Wishlist",
         )
 
     def _show_and_email_report(self, rows_fn, summary_fn, graph_fn, report_title):
