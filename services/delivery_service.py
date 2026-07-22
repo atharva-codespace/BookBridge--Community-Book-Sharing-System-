@@ -3,11 +3,15 @@ services/delivery_service.py
 Delivery Boy dashboard operations: view the deliveries assigned to me
 (book, pickup details, drop details, expected date), and move each one
 through the pickup -> delivered workflow.
+
+Presentation note: only the printed messages/prompts/tables have been
+upgraded to utils/ui.py styling. Workflow and status transitions are unchanged.
 """
 
 from datetime import date
 
 from models.delivery import Delivery
+from utils import ui
 from utils.helpers import print_table
 
 MY_DELIVERY_FIELDS = ["Delivery_ID", "Book_Name", "Pickup_Name", "Pickup_Phone",
@@ -39,25 +43,25 @@ class DeliveryService:
         if not delivery:
             return
         Delivery.update_status(delivery.delivery_id, "Picked Up")
-        print(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') marked as Picked Up.")
+        ui.success(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') marked as Picked Up.")
 
     def mark_delivered(self):
         delivery = self._select_own_delivery("Picked Up")
         if not delivery:
             return
         Delivery.update_status(delivery.delivery_id, "Delivered", delivered_date=date.today())
-        print(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') marked as Delivered.")
+        ui.success(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') marked as Delivered.")
 
     def _select_own_delivery(self, required_status):
-        did = input("Enter Delivery ID: ").strip()
+        did = ui.prompt("Enter Delivery ID").strip()
         if not did.isdigit():
-            print("Invalid Delivery ID.")
+            ui.error("Invalid Delivery ID.")
             return None
         delivery = Delivery.get_by_id(int(did))
         if not delivery or delivery.delivery_boy_id != self.session.user_id:
-            print("Delivery not found.")
+            ui.error("Delivery not found.")
             return None
         if delivery.status != required_status:
-            print(f"This delivery must be '{required_status}' first (it is currently '{delivery.status}').")
+            ui.error(f"This delivery must be '{required_status}' first (it is currently '{delivery.status}').")
             return None
         return delivery

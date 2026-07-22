@@ -6,12 +6,17 @@ activating / deactivating / deleting them, and assigning a delivery boy to
 an approved request's Delivery record. Every method here assumes the
 caller has already passed the Authorization.require_admin() check in
 main.py.
+
+Presentation note: only the printed messages/prompts/tables have been
+upgraded to utils/ui.py styling. Every field, validation rule, and
+database call is unchanged.
 """
 
 from models.delivery import Delivery
 from models.delivery_boy import DeliveryBoy
 from services.validation import Validation
 from utils.hashing import Hashing
+from utils import ui
 from utils.helpers import confirm_action, print_table
 
 DELIVERY_BOY_FIELDS = ["Delivery_Boy_ID", "Username", "Full_Name", "Email",
@@ -41,53 +46,53 @@ class DeliveryManagement:
 
     # ==================== REGISTER DELIVERY BOY (admin-only) ====================
     def register_delivery_boy(self):
-        print("\n--- REGISTER NEW DELIVERY BOY ---")
+        ui.section_header("REGISTER NEW DELIVERY BOY", icon="🚚")
         try:
-            full_name = input("Full Name: ").strip()
+            full_name = ui.prompt("Full Name").strip()
             if not Validation.validate_name(full_name):
-                print("Invalid name. Registration cancelled.")
+                ui.error("Invalid name. Registration cancelled.")
                 return
 
-            email = input("Email: ").strip()
+            email = ui.prompt("Email").strip()
             if not Validation.validate_email(email):
-                print("Invalid email format. Registration cancelled.")
+                ui.error("Invalid email format. Registration cancelled.")
                 return
             if DeliveryBoy.get_by_email(email):
-                print("A delivery boy with this email already exists.")
+                ui.error("A delivery boy with this email already exists.")
                 return
 
-            phone = input("Phone Number (10 digits): ").strip()
+            phone = ui.prompt("Phone Number (10 digits)").strip()
             if not Validation.validate_phone(phone):
-                print("Invalid phone number. Registration cancelled.")
+                ui.error("Invalid phone number. Registration cancelled.")
                 return
 
-            username = input("Username: ").strip()
+            username = ui.prompt("Username").strip()
             if not Validation.validate_not_empty(username):
-                print("Username cannot be empty.")
+                ui.error("Username cannot be empty.")
                 return
             if DeliveryBoy.get_by_username(username):
-                print("This username is already taken.")
+                ui.error("This username is already taken.")
                 return
 
-            password = input("Password: ").strip()
+            password = ui.prompt("Password", password=True).strip()
             valid, reason = Validation.validate_password_strength(password)
             if not valid:
-                print(reason)
+                ui.error(reason)
                 return
-            confirm_password = input("Confirm Password: ").strip()
+            confirm_password = ui.prompt("Confirm Password", password=True).strip()
             if password != confirm_password:
-                print("Passwords do not match. Registration cancelled.")
+                ui.error("Passwords do not match. Registration cancelled.")
                 return
 
-            vehicle_info = input("Vehicle Info (e.g. Bike - MH12AB1234, optional): ").strip() or None
+            vehicle_info = ui.prompt("Vehicle Info (e.g. Bike - MH12AB1234, optional)").strip() or None
 
             password_hash = Hashing.hash_password(password)
             DeliveryBoy.create(full_name, email, phone, username, password_hash,
                                vehicle_info, created_by=self.session.username)
-            print(f"Delivery boy '{username}' registered successfully.")
+            ui.success(f"Delivery boy '{username}' registered successfully.")
 
         except Exception as e:
-            print(f"Failed to register delivery boy: {e}")
+            ui.error(f"Failed to register delivery boy: {e}")
 
     # ==================== VIEW / ACTIVATE / DEACTIVATE / DELETE ====================
     def view_delivery_boys(self):
@@ -99,30 +104,30 @@ class DeliveryManagement:
         boy = self._select_delivery_boy_by_id("activate")
         if boy:
             DeliveryBoy.update_status(boy.delivery_boy_id, "Active")
-            print(f"Delivery boy '{boy.username}' has been activated.")
+            ui.success(f"Delivery boy '{boy.username}' has been activated.")
 
     def deactivate_delivery_boy(self):
         boy = self._select_delivery_boy_by_id("deactivate")
         if boy:
             DeliveryBoy.update_status(boy.delivery_boy_id, "Inactive")
-            print(f"Delivery boy '{boy.username}' has been deactivated.")
+            ui.success(f"Delivery boy '{boy.username}' has been deactivated.")
 
     def delete_delivery_boy(self):
         boy = self._select_delivery_boy_by_id("delete")
         if boy and confirm_action(f"Confirm permanent deletion of '{boy.username}'?"):
             DeliveryBoy.delete(boy.delivery_boy_id)
-            print(f"Delivery boy '{boy.username}' has been deleted.")
+            ui.success(f"Delivery boy '{boy.username}' has been deleted.")
         elif boy:
-            print("Deletion cancelled.")
+            ui.warning("Deletion cancelled.")
 
     def _select_delivery_boy_by_id(self, action_name):
-        did = input(f"Enter Delivery Boy ID to {action_name}: ").strip()
+        did = ui.prompt(f"Enter Delivery Boy ID to {action_name}").strip()
         if not did.isdigit():
-            print("Invalid Delivery Boy ID.")
+            ui.error("Invalid Delivery Boy ID.")
             return None
         boy = DeliveryBoy.get_by_id(int(did))
         if not boy:
-            print("Delivery boy not found.")
+            ui.error("Delivery boy not found.")
         return boy
 
     # ==================== ASSIGNMENT ====================
@@ -143,33 +148,33 @@ class DeliveryManagement:
         if not deliveries:
             return
 
-        did = input("Enter Delivery ID to assign (or press Enter to go back): ").strip()
+        did = ui.prompt("Enter Delivery ID to assign (or press Enter to go back)").strip()
         if not did:
             return
         if not did.isdigit():
-            print("Invalid Delivery ID.")
+            ui.error("Invalid Delivery ID.")
             return
         delivery = Delivery.get_by_id(int(did))
         if not delivery or delivery.status != "Pending":
-            print("No unassigned delivery with that ID.")
+            ui.error("No unassigned delivery with that ID.")
             return
 
         boys = DeliveryBoy.get_all_active()
         print_table([_delivery_boy_to_row(d) for d in boys], headers=DELIVERY_BOY_FIELDS,
                     title="ACTIVE DELIVERY BOYS")
         if not boys:
-            print("No active delivery boys to assign. Register one first.")
+            ui.warning("No active delivery boys to assign. Register one first.")
             return
 
-        bid = input("Enter Delivery Boy ID to assign this delivery to: ").strip()
+        bid = ui.prompt("Enter Delivery Boy ID to assign this delivery to").strip()
         if not bid.isdigit():
-            print("Invalid Delivery Boy ID.")
+            ui.error("Invalid Delivery Boy ID.")
             return
         boy = DeliveryBoy.get_by_id(int(bid))
         if not boy or boy.account_status != "Active":
-            print("No active delivery boy with that ID.")
+            ui.error("No active delivery boy with that ID.")
             return
 
         Delivery.assign(delivery.delivery_id, boy.delivery_boy_id)
-        print(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') assigned to "
-              f"{boy.full_name} ({boy.username}).")
+        ui.success(f"Delivery #{delivery.delivery_id} ('{delivery.book_name}') assigned to "
+                   f"{boy.full_name} ({boy.username}).")

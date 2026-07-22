@@ -8,6 +8,7 @@ import os
 from email.message import EmailMessage
 
 from utils.email_sender import SENDER_EMAIL, APP_PASSWORD
+from utils import ui
 
 
 def send_report_email(receiver, pdf_path, report_title):
@@ -35,4 +36,4 @@ def send_report_email(receiver, pdf_path, report_title):
         server.login(sender, password)
         server.send_message(msg)
 
-    print("Report Sent Successfully to", receiver)
+    ui.success(f"Report sent successfully to {receiver}")

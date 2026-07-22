@@ -3,6 +3,10 @@ services/authentication.py
 Handles login for both Users and Administrators, and defines the
 Session class that tracks who is currently logged in for the
 duration of the running console application (Session Management).
+
+Presentation note: only the printed messages have been upgraded to the
+Rich-based utils/ui.py styling (success/error banners). Every credential
+check, Login_History write, and Session field assignment is unchanged.
 """
 
 from datetime import datetime
@@ -10,6 +14,7 @@ from models.user import User
 from models.admin import Admin
 from models.delivery_boy import DeliveryBoy
 from utils.hashing import Hashing
+from utils import ui
 from database.db import Database
 
 
@@ -84,15 +89,15 @@ class Authentication:
         try:
             user = User.get_by_username_or_email(identifier)
             if user is None:
-                print("Login failed: No account found with that username/email.")
+                ui.error("Login failed: No account found with that username/email.")
                 return False
 
             if user.account_status != "Active":
-                print("Login failed: This account is Inactive. Please contact support.")
+                ui.error("Login failed: This account is Inactive. Please contact support.")
                 return False
 
             if not Hashing.verify_password(password, user.password_hash):
-                print("Login failed: Incorrect password.")
+                ui.error("Login failed: Incorrect password.")
                 return False
 
             # Record this login in Login_History (Feature 9: Activity History)
@@ -103,11 +108,11 @@ class Authentication:
             )
 
             self.session.login_as_user(user, login_history_id)
-            print(f"\nLogin successful. Welcome, {user.full_name}!")
+            ui.success(f"Login successful. Welcome, {user.full_name}!")
             return True
 
         except Exception as e:
-            print(f"An error occurred during login: {e}")
+            ui.error(f"An error occurred during login: {e}")
             return False
 
     # ==================== ADMIN LOGIN ====================
@@ -116,23 +121,23 @@ class Authentication:
         try:
             admin = Admin.get_by_username_or_email(identifier)
             if admin is None:
-                print("Login failed: No administrator account found with that username/email.")
+                ui.error("Login failed: No administrator account found with that username/email.")
                 return False
 
             if admin.account_status != "Active":
-                print("Login failed: This administrator account is Inactive.")
+                ui.error("Login failed: This administrator account is Inactive.")
                 return False
 
             if not Hashing.verify_password(password, admin.password_hash):
-                print("Login failed: Incorrect password.")
+                ui.error("Login failed: Incorrect password.")
                 return False
 
             self.session.login_as_admin(admin)
-            print(f"\nAdmin login successful. Welcome, {admin.full_name}!")
+            ui.success(f"Admin login successful. Welcome, {admin.full_name}!")
             return True
 
         except Exception as e:
-            print(f"An error occurred during login: {e}")
+            ui.error(f"An error occurred during login: {e}")
             return False
 
     # ==================== DELIVERY BOY LOGIN ====================
@@ -141,23 +146,23 @@ class Authentication:
         try:
             delivery_boy = DeliveryBoy.get_by_username_or_email(identifier)
             if delivery_boy is None:
-                print("Login failed: No delivery boy account found with that username/email.")
+                ui.error("Login failed: No delivery boy account found with that username/email.")
                 return False
 
             if delivery_boy.account_status != "Active":
-                print("Login failed: This delivery boy account is Inactive.")
+                ui.error("Login failed: This delivery boy account is Inactive.")
                 return False
 
             if not Hashing.verify_password(password, delivery_boy.password_hash):
-                print("Login failed: Incorrect password.")
+                ui.error("Login failed: Incorrect password.")
                 return False
 
             self.session.login_as_delivery_boy(delivery_boy)
-            print(f"\nDelivery boy login successful. Welcome, {delivery_boy.full_name}!")
+            ui.success(f"Delivery boy login successful. Welcome, {delivery_boy.full_name}!")
             return True
 
         except Exception as e:
-            print(f"An error occurred during login: {e}")
+            ui.error(f"An error occurred during login: {e}")
             return False
 
     # ==================== LOGOUT ====================
@@ -172,8 +177,8 @@ class Authentication:
                     commit=True,
                 )
             if self.session.username:
-                print(f"\n{self.session.username} logged out successfully.")
+                ui.info(f"{self.session.username} logged out successfully.")
         except Exception as e:
-            print(f"An error occurred during logout: {e}")
+            ui.error(f"An error occurred during logout: {e}")
         finally:
             self.session.logout()

@@ -8,6 +8,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+from utils import ui
+
 
 def generate_pdf(rows, summary, graph_path, report_title):
     os.makedirs("Reports", exist_ok=True)
@@ -53,5 +55,5 @@ def generate_pdf(rows, summary, graph_path, report_title):
         content.append(Paragraph("No records found.", styles["Normal"]))
 
     doc.build(content)
-    print(f"\nPDF Created Successfully: {path}")
+    ui.success(f"PDF created successfully: {path}")
     return path

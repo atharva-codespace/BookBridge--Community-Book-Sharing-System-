@@ -7,6 +7,7 @@ and generates graphs.
 import matplotlib.pyplot as plt
 import os
 from database.db import Database
+from utils import ui
 
 db = Database.get_instance()
 
@@ -63,7 +64,7 @@ def fetch_books_summary():
 
 # ---------------- GRAPH GENERATION ----------------
 # Note: terminal table printing for this data lives in services/report_service.py,
-# which uses the shared utils.helpers.print_table (tabulate-based) so every
+# which uses the shared utils.helpers.print_table (Rich-based) so every
 # module's output is formatted consistently.
 
 def generate_users_graph(summary):
@@ -78,7 +79,7 @@ def generate_users_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path
 
 
@@ -94,7 +95,7 @@ def generate_books_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path
 
 
@@ -132,7 +133,7 @@ def generate_requests_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path
 
 
@@ -172,7 +173,7 @@ def generate_reservations_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path
 
 
@@ -213,7 +214,7 @@ def generate_reviews_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path
 
 
@@ -250,5 +251,5 @@ def generate_wishlist_graph(summary):
     plt.savefig(path)
     plt.close()
 
-    print(f"Graph saved at: {path}")
+    ui.info(f"Graph saved at: {path}")
     return path

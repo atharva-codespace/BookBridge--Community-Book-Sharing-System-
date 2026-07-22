@@ -1,6 +1,6 @@
 """
 main.py
-Entry point for the Book Bank Management System.
+Entry point for BookBridge.
 
 Run this file to start the console application:
     python main.py
@@ -20,6 +20,11 @@ Analytics) through a session-mode-aware menu hierarchy:
   - Dynamic Menu: only the dashboard matching the active session mode is
     ever shown
   - Global exception handling / invalid-choice handling at every level
+
+Presentation note: every user-facing print() in this file has been
+upgraded to the Rich-based utils/ui.py toolkit (banners, styled
+success/error/warning messages, a spinner around startup/login). No
+business logic, routing, or validation behaviour has changed.
 """
 
 import sys
@@ -39,7 +44,10 @@ from services.delivery_management import DeliveryManagement
 from services.delivery_service import DeliveryService
 from services.authorization import Authorization
 from services.validation import Validation
+from services.ai_chatbot import run_ai_project_assistant
+from services.ai_recommendation import show_recommendations
 from utils.hashing import Hashing
+from utils import ui
 from utils.menus import (
     MODE_CHOICES,
     show_main_menu,
@@ -74,6 +82,11 @@ ROLE_TO_LISTING_TYPE = {
 }
 
 
+def _choice():
+    """Shared styled 'Enter choice' prompt used by every menu loop below."""
+    return ui.prompt("Enter choice").strip()
+
+
 # ======================================================================
 # SHARED SUBMENU: MY ACCOUNT (every role)
 # ======================================================================
@@ -81,7 +94,7 @@ def account_menu_loop(session, auth, profile, password_mgmt):
     """My Account: profile, password, preferences, activity history, account status."""
     while True:
         show_account_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 profile.view_profile()
@@ -110,9 +123,9 @@ def account_menu_loop(session, auth, profile, password_mgmt):
             elif choice == "11":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-11).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-11).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
 
 
         if not session.is_authenticated:
@@ -124,7 +137,7 @@ def reviews_menu_loop(review_service):
     """Ratings & feedback (Module 5) - shared by every role."""
     while True:
         show_reviews_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 review_service.submit_review()
@@ -135,9 +148,9 @@ def reviews_menu_loop(review_service):
             elif choice == "3":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-4).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -145,7 +158,7 @@ def notifications_menu_loop(request_service):
     """Shared by every role."""
     while True:
         show_notifications_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.view_notifications()
@@ -159,9 +172,9 @@ def notifications_menu_loop(request_service):
             elif choice == "4":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-4).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
 
         pause()
 
@@ -174,7 +187,7 @@ def marketplace_menu_loop(book_mgmt):
     while True:
         show_marketplace_menu()
 
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 book_mgmt.browse_books()
@@ -183,9 +196,9 @@ def marketplace_menu_loop(book_mgmt):
             elif choice == "3":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-3).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -195,7 +208,7 @@ def buyer_actions_menu_loop(request_service):
 
     while True:
         show_buyer_actions_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.request_book()
@@ -204,16 +217,16 @@ def buyer_actions_menu_loop(request_service):
             elif choice == "3":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-3).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
 def wishlist_menu_loop(request_service):
     while True:
         show_wishlist_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.add_to_wishlist()
@@ -226,16 +239,16 @@ def wishlist_menu_loop(request_service):
             elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-5).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
 def my_requests_reservations_menu_loop(request_service):
     while True:
         show_my_requests_reservations_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.view_my_sent_requests()
@@ -248,9 +261,9 @@ def my_requests_reservations_menu_loop(request_service):
             elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-5).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -267,12 +280,15 @@ def buyer_dashboard_loop(session, auth):
             return
 
         show_buyer_dashboard(session.username)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
 
         try:
             if choice == "1":
                 account_menu_loop(session, auth, profile, password_mgmt)
             elif choice == "2":
+                # AI Book Recommendation (Feature 2): shown once, right
+                # before the normal Browse & Search Books / Buy Books screen.
+                show_recommendations(session)
                 marketplace_menu_loop(book_mgmt)
             elif choice == "3":
                 buyer_actions_menu_loop(request_service)
@@ -290,10 +306,10 @@ def buyer_dashboard_loop(session, auth):
                 auth.logout()
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-9).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-9).")
                 pause()
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
             pause()
 
         if not session.is_authenticated:
@@ -307,7 +323,7 @@ def my_listings_menu_loop(book_mgmt, role):
     """Add/view/edit/delete my own listings. Add uses the role's fixed Listing_Type."""
     while True:
         show_my_listings_menu(role)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 book_mgmt.add_book(listing_type=ROLE_TO_LISTING_TYPE.get(role))
@@ -320,9 +336,9 @@ def my_listings_menu_loop(book_mgmt, role):
             elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-5).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -330,7 +346,7 @@ def owner_activity_menu_loop(request_service):
     """Read-only history: who has requested/reserved my listings."""
     while True:
         show_owner_activity_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.view_requests_on_my_books()
@@ -339,9 +355,9 @@ def owner_activity_menu_loop(request_service):
             elif choice == "3":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-3).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -358,7 +374,7 @@ def owner_dashboard_loop(session, auth, role):
             return
 
         show_owner_dashboard(session.username, role)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
 
         try:
             if choice == "1":
@@ -377,10 +393,10 @@ def owner_dashboard_loop(session, auth, role):
                 auth.logout()
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-7).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-7).")
                 pause()
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
             pause()
 
         if not session.is_authenticated:
@@ -398,14 +414,14 @@ def choose_session_mode(session):
     """
     while True:
         show_mode_menu(session.role)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         if choice == "":
             session.active_role = session.role
             return
         if choice in MODE_CHOICES:
             session.active_role = MODE_CHOICES[choice]
             return
-        print("Invalid choice. Please select 1-4, or press Enter for your default.")
+        ui.warning("Invalid choice. Please select 1-4, or press Enter for your default.")
 
 
 def user_dashboard_loop(session, auth):
@@ -432,7 +448,7 @@ def user_dashboard_loop(session, auth):
 def user_mgmt_menu_loop(admin_mgmt):
     while True:
         show_user_mgmt_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 admin_mgmt.register_admin()
@@ -453,16 +469,16 @@ def user_mgmt_menu_loop(admin_mgmt):
             elif choice == "9":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-9).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-9).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
 def book_mgmt_menu_loop(book_mgmt):
     while True:
         show_book_mgmt_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 book_mgmt.admin_view_all_books()
@@ -473,16 +489,16 @@ def book_mgmt_menu_loop(book_mgmt):
             elif choice == "4":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-4).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
 def reviews_mod_menu_loop(review_service):
     while True:
         show_reviews_mod_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 review_service.admin_view_all_reviews()
@@ -491,16 +507,16 @@ def reviews_mod_menu_loop(review_service):
             elif choice == "3":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-3).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-3).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
 def requests_overview_menu_loop(request_service):
     while True:
         show_requests_overview_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 request_service.admin_view_all_requests()
@@ -513,9 +529,9 @@ def requests_overview_menu_loop(request_service):
             elif choice == "5":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-5).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-5).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -523,7 +539,7 @@ def reports_menu_loop(report_service):
     """See All Reports: shows analytics + graph on screen and auto-emails the PDF to the admin."""
     while True:
         show_reports_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 report_service.show_user_report()
@@ -540,9 +556,9 @@ def reports_menu_loop(report_service):
             elif choice == "7":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-7).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-7).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
 
         pause()
 
@@ -553,7 +569,7 @@ def reports_menu_loop(report_service):
 def delivery_mgmt_menu_loop(delivery_mgmt):
     while True:
         show_delivery_mgmt_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
         try:
             if choice == "1":
                 delivery_mgmt.register_delivery_boy()
@@ -574,9 +590,9 @@ def delivery_mgmt_menu_loop(delivery_mgmt):
             elif choice == "9":
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-9).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-9).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
         pause()
 
 
@@ -598,7 +614,7 @@ def admin_dashboard_loop(session, auth):
             return
 
         show_admin_dashboard(session.username)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
 
         try:
             if choice == "1":
@@ -617,10 +633,10 @@ def admin_dashboard_loop(session, auth):
                 auth.logout()
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-7).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-7).")
                 pause()
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
             pause()
 
 
@@ -637,7 +653,7 @@ def delivery_boy_dashboard_loop(session, auth):
             return
 
         show_delivery_boy_dashboard(session.username)
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
 
         try:
             if choice == "1":
@@ -650,9 +666,9 @@ def delivery_boy_dashboard_loop(session, auth):
                 auth.logout()
                 return
             else:
-                print("Invalid choice. Please select a valid menu option (1-4).")
+                ui.warning("Invalid choice. Please select a valid menu option (1-4).")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
 
         if not session.is_authenticated:
             return
@@ -672,20 +688,21 @@ def bootstrap_first_admin():
         if Admin.get_all():
             return  # At least one administrator already exists - nothing to do
     except Exception as e:
-        print(f"Could not check for existing administrators: {e}")
+        ui.error(f"Could not check for existing administrators: {e}")
         return
 
-    print("\nNo administrator account exists yet. Let's create the first one.")
+    ui.section_header("FIRST-TIME SETUP", icon="🛡️")
+    ui.info("No administrator account exists yet. Let's create the first one.")
     try:
         full_name = get_non_empty_input("Full Name: ")
 
         while True:
             email = get_non_empty_input("Email: ")
             if not Validation.validate_email(email):
-                print("Invalid email format.")
+                ui.error("Invalid email format.")
                 continue
             if Admin.get_by_email(email):
-                print("An administrator with this email already exists.")
+                ui.error("An administrator with this email already exists.")
                 continue
             break
 
@@ -693,23 +710,23 @@ def bootstrap_first_admin():
             phone = get_non_empty_input("Phone Number (10 digits): ")
             if Validation.validate_phone(phone):
                 break
-            print("Invalid phone number. It must be exactly 10 digits.")
+            ui.error("Invalid phone number. It must be exactly 10 digits.")
 
         while True:
             username = get_non_empty_input("Username: ")
             if not Admin.get_by_username(username):
                 break
-            print("This username is already taken.")
+            ui.error("This username is already taken.")
 
         while True:
             password = get_non_empty_input("Password: ")
             valid, reason = Validation.validate_password_strength(password)
             if not valid:
-                print(reason)
+                ui.error(reason)
                 continue
             confirm = get_non_empty_input("Confirm Password: ")
             if password != confirm:
-                print("Passwords do not match.")
+                ui.error("Passwords do not match.")
                 continue
             break
 
@@ -718,10 +735,10 @@ def bootstrap_first_admin():
         password_hash = Hashing.hash_password(password)
         Admin.create(full_name, email, phone, username, password_hash,
                      admin_level, created_by="SYSTEM")
-        print(f"First administrator '{username}' created successfully. You can now log in.")
+        ui.success(f"First administrator '{username}' created successfully. You can now log in.")
 
     except Exception as e:
-        print(f"Failed to create the first administrator: {e}")
+        ui.error(f"Failed to create the first administrator: {e}")
 
 
 # ======================================================================
@@ -730,10 +747,12 @@ def bootstrap_first_admin():
 def main():
     # Establish the database connection once at startup.
     try:
-        Database.get_instance()
+        with ui.spinner("Connecting to the database"):
+            Database.get_instance()
     except Exception:
-        print("Could not connect to the database. Please check your MySQL "
-              "configuration in database/db.py and ensure the MySQL server is running.")
+        ui.error("Could not connect to the database. Please check the SQLite "
+                 "file path (Database.DB_PATH) in database/db.py, and make sure "
+                 "database/database.sql has been run to create the tables.")
         sys.exit(1)
 
     bootstrap_first_admin()
@@ -744,46 +763,58 @@ def main():
 
     while True:
         show_main_menu()
-        choice = input("Enter choice: ").strip()
+        choice = _choice()
 
         try:
             if choice == "1":
                 identifier = get_non_empty_input("Username or Email: ")
+                password = ui.prompt("Password", password=True)
 
-                password = input("Password: ").strip()
-
-                if auth.login_user(identifier, password):
+                with ui.spinner("Signing in"):
+                    logged_in = auth.login_user(identifier, password)
+                if logged_in:
                     user_dashboard_loop(session, auth)
 
             elif choice == "2":
                 identifier = get_non_empty_input("Admin Username or Email: ")
-                password = input("Password: ").strip()
-                if auth.login_admin(identifier, password):
+                password = ui.prompt("Password", password=True)
+                with ui.spinner("Signing in"):
+                    logged_in = auth.login_admin(identifier, password)
+                if logged_in:
                     admin_dashboard_loop(session, auth)
 
             elif choice == "3":
                 identifier = get_non_empty_input("Delivery Boy Username or Email: ")
-                password = input("Password: ").strip()
-                if auth.login_delivery_boy(identifier, password):
+                password = ui.prompt("Password", password=True)
+                with ui.spinner("Signing in"):
+                    logged_in = auth.login_delivery_boy(identifier, password)
+                if logged_in:
                     delivery_boy_dashboard_loop(session, auth)
 
             elif choice == "4":
                 registration.register_user()
 
             elif choice == "5":
-                print("\nThank you for using Book Bank Management System. Goodbye!")
+                # Feature 1: AI Project Assistant - project-only Q&A chatbot,
+                # loops until the user types 'exit', then falls back here.
+                run_ai_project_assistant()
+
+            elif choice == "6":
+                ui.console.print()
+                ui.banner("GOODBYE", subtitle="Thank you for using BookBridge!")
                 Database.get_instance().close()
                 sys.exit(0)
 
             else:
-                print("Invalid choice. Please select 1-5.")
+                ui.warning("Invalid choice. Please select 1-6.")
 
         except KeyboardInterrupt:
-            print("\n\nProgram interrupted. Exiting safely...")
+            ui.console.print()
+            ui.warning("Program interrupted. Exiting safely...")
             Database.get_instance().close()
             sys.exit(0)
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            ui.error(f"An unexpected error occurred: {e}")
 
 
         pause()

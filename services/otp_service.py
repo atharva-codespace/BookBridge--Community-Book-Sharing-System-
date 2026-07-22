@@ -3,12 +3,17 @@ services/otp_service.py
 
 Handles Email OTP generation, sending,
 verification, expiry timer and resend OTP.
+
+Presentation note: only the printed messages/prompts have been upgraded to
+utils/ui.py styling. OTP generation, expiry, and attempt-counting logic is
+unchanged.
 """
 
 import random
 from datetime import datetime, timedelta
 
 from utils.email_sender import send_email_otp
+from utils import ui
 
 
 class OTPService:
@@ -63,7 +68,7 @@ class OTPService:
     def verify_otp(self, entered_otp):
 
         if self.is_expired():
-            print("\nOTP has expired.")
+            ui.error("OTP has expired.")
             return False
 
         self.__attempts += 1
@@ -74,10 +79,9 @@ class OTPService:
         remaining = self.MAX_ATTEMPTS - self.__attempts
 
         if remaining > 0:
-            print(f"\nIncorrect OTP.")
-            print(f"Attempts Remaining : {remaining}")
+            ui.error(f"Incorrect OTP. Attempts Remaining: {remaining}")
         else:
-            print("\nMaximum attempts exceeded.")
+            ui.error("Maximum attempts exceeded.")
 
         return False
 
@@ -106,33 +110,38 @@ class OTPService:
             send_email_otp(email, otp)
 
         except Exception as e:
-            print(f"\nUnable to send OTP.\n{e}")
+            ui.error(f"Unable to send OTP.\n{e}")
             return False
 
-        print("\nOTP has been sent to your Email successfully.")
-        print(f"Email : {email}")
-        print(f"OTP expires in {self.OTP_VALIDITY_MINUTES} minutes.")
+        ui.success("OTP has been sent to your Email successfully.")
+        ui.info(f"Email: {email}")
+        ui.info(f"OTP expires in {self.OTP_VALIDITY_MINUTES} minutes.")
 
         while True:
 
             if self.is_expired():
-                print("\nOTP has expired.")
+                ui.error("OTP has expired.")
                 self.clear()
                 return False
 
-            print("\n========== EMAIL VERIFICATION ==========")
-            print("1. Enter OTP")
-            print("2. Resend OTP")
-            print("3. Cancel")
+            ui.menu(
+                "EMAIL VERIFICATION",
+                [
+                    ("1", "Enter OTP", "🔢"),
+                    ("2", "Resend OTP", "🔁"),
+                    ("3", "Cancel", "🚫"),
+                ],
+                icon="📧",
+            )
 
-            choice = input("Enter Choice : ").strip()
+            choice = ui.prompt("Enter Choice").strip()
 
             if choice == "1":
 
-                entered = input("Enter OTP : ").strip()
+                entered = ui.prompt("Enter OTP").strip()
 
                 if self.verify_otp(entered):
-                    print("\nEmail Verified Successfully.\n")
+                    ui.success("Email Verified Successfully.")
                     self.clear()
                     return True
 
@@ -147,18 +156,18 @@ class OTPService:
 
                 try:
                     send_email_otp(email, otp)
-                    print("\nA new OTP has been sent.")
+                    ui.success("A new OTP has been sent.")
 
                 except Exception as e:
-                    print(f"\nUnable to resend OTP.\n{e}")
+                    ui.error(f"Unable to resend OTP.\n{e}")
                     return False
 
             elif choice == "3":
 
-                print("\nVerification Cancelled.")
+                ui.warning("Verification Cancelled.")
                 self.clear()
                 return False
 
             else:
 
-                print("\nInvalid Choice.")
+                ui.warning("Invalid Choice.")

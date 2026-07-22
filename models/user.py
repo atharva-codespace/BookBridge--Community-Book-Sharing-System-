@@ -114,10 +114,11 @@ class User:
         """Searches active users by username, email, or exact user id."""
         db = Database.get_instance()
         like = f"%{keyword}%"
+        # AS CHAR -> AS TEXT below: SQLite's CAST target type, not MySQL's.
         rows = db.fetch_all(
             """SELECT * FROM Users
                WHERE Is_Deleted = 0
-               AND (Username LIKE %s OR Email LIKE %s OR CAST(User_ID AS CHAR) = %s)""",
+               AND (Username LIKE %s OR Email LIKE %s OR CAST(User_ID AS TEXT) = %s)""",
             (like, like, keyword),
         )
         return [cls._row_to_user(r) for r in rows]

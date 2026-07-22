@@ -8,6 +8,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from utils import ui
+
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -70,20 +72,19 @@ BookBridge Team
 
     except smtplib.SMTPAuthenticationError:
 
-        print("Authentication Failed.")
-        print("Check your Gmail App Password.")
+        ui.error("Authentication Failed. Check your Gmail App Password.")
 
         raise
 
     except smtplib.SMTPException as e:
 
-        print("SMTP Error :", e)
+        ui.error(f"SMTP Error: {e}")
 
         raise
 
     except Exception as e:
 
-        print("Unexpected Error :", e)
+        ui.error(f"Unexpected Error: {e}")
 
         raise
 
@@ -136,19 +137,18 @@ BookBridge Team
 
     except smtplib.SMTPAuthenticationError:
 
-        print("Authentication Failed.")
-        print("Check your Gmail App Password.")
+        ui.error("Authentication Failed. Check your Gmail App Password.")
 
         raise
 
     except smtplib.SMTPException as e:
 
-        print("SMTP Error :", e)
+        ui.error(f"SMTP Error: {e}")
 
         raise
 
     except Exception as e:
 
-        print("Unexpected Error :", e)
+        ui.error(f"Unexpected Error: {e}")
 
         raise

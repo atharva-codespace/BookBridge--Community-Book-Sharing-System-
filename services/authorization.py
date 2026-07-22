@@ -6,6 +6,8 @@ Admin Creation, and Promotion features. Any attempt by a regular user
 (or an unauthenticated session) is denied.
 """
 
+from utils import ui
+
 
 class Authorization:
     """Centralizes every access-control check used by main.py and the services."""
@@ -24,24 +26,24 @@ class Authorization:
 
     @staticmethod
     def require_admin(session) -> bool:
-        """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
+        """Returns True if allowed, otherwise shows an ACCESS DENIED banner and returns False."""
         if not Authorization.is_admin(session):
-            print("\nACCESS DENIED")
+            ui.error("ACCESS DENIED")
             return False
         return True
 
     @staticmethod
     def require_user(session) -> bool:
-        """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
+        """Returns True if allowed, otherwise shows an ACCESS DENIED banner and returns False."""
         if not Authorization.is_user(session):
-            print("\nACCESS DENIED")
+            ui.error("ACCESS DENIED")
             return False
         return True
 
     @staticmethod
     def require_delivery_boy(session) -> bool:
-        """Returns True if allowed, otherwise prints ACCESS DENIED and returns False."""
+        """Returns True if allowed, otherwise shows an ACCESS DENIED banner and returns False."""
         if not Authorization.is_delivery_boy(session):
-            print("\nACCESS DENIED")
+            ui.error("ACCESS DENIED")
             return False
         return True

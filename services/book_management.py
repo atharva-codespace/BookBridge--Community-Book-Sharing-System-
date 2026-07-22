@@ -5,11 +5,16 @@ Discovery) business logic. Replaces the old standalone prototypes
 (models/add_book.py, update_book.py, delete_book.py, view_books.py,
 viewbook.py, searchbook.py) which imported a non-existent `conn`/`cursor`
 from `database` and were never reachable from main.py.
+
+Presentation note: only the printed messages/prompts/tables have been
+upgraded to utils/ui.py styling. Every field, validation rule, and
+database call is unchanged.
 """
 
 from models.book import Book
 from models.user import User
 from services.validation import Validation
+from utils import ui
 from utils.helpers import (
     choose_book_condition,
     choose_listing_type,
@@ -53,22 +58,22 @@ class BookManagement:
         Donation, Exchange User -> Exchange) preset the listing type so the
         user isn't asked to choose it again; pass None to prompt for it.
         """
-        print("\n--- ADD NEW BOOK LISTING ---")
+        ui.section_header("ADD NEW BOOK LISTING", icon="📚")
         try:
             owner = User.get_by_id(self.session.user_id)
 
             title = get_non_empty_input("Book Title: ")
             author = get_non_empty_input("Author Name: ")
-            isbn = input("ISBN (optional): ").strip() or None
+            isbn = ui.prompt("ISBN (optional)").strip() or None
             category = get_non_empty_input("Category: ")
 
             price = get_float_input("Price: ")
-            location = input(f"Location [{owner.location}]: ").strip() or owner.location
+            location = ui.prompt("Location", default=owner.location).strip() or owner.location
 
             book_condition = choose_book_condition()
             #if listing_type is None:
            #     listing_type = choose_listing_type()
-            edition = input("Edition (optional): ").strip() or None
+            edition = ui.prompt("Edition (optional)").strip() or None
 
             Book.create(
                 title=title, author=author, isbn=isbn, category=category, price=price,
@@ -76,9 +81,9 @@ class BookManagement:
                 book_condition=book_condition, listing_type=listing_type, edition=edition,
                 owner_id=self.session.user_id,
             )
-            print(f"\nBook '{title}' added successfully.")
+            ui.success(f"Book '{title}' added successfully.")
         except Exception as e:
-            print(f"Failed to add book: {e}")
+            ui.error(f"Failed to add book: {e}")
 
     def view_my_listings(self):
         books = Book.get_by_owner(self.session.user_id)
@@ -89,63 +94,69 @@ class BookManagement:
         if not book:
             return
 
-        print("\n--- EDIT BOOK (press Enter to keep the current value) ---")
-        title = input(f"Title [{book.title}]: ").strip() or book.title
+        ui.section_header("EDIT BOOK", icon="✏️")
+        ui.info("Press Enter to keep the current value.")
+        title = ui.prompt("Title", default=book.title).strip() or book.title
 
 
-        author = input(f"Author [{book.author}]: ").strip() or book.author
-        isbn = input(f"ISBN [{book.isbn or ''}]: ").strip() or book.isbn
-        category = input(f"Category [{book.category}]: ").strip() or book.category
+        author = ui.prompt("Author", default=book.author).strip() or book.author
+        isbn = ui.prompt("ISBN", default=book.isbn or "").strip() or book.isbn
+        category = ui.prompt("Category", default=book.category).strip() or book.category
 
-        price_input = input(f"Price [{book.price}]: ").strip()
+        price_input = ui.prompt(f"Price (current: {book.price}, blank to keep)").strip()
         if price_input and not Validation.validate_price(price_input):
-            print("Invalid price. Update cancelled.")
+            ui.error("Invalid price. Update cancelled.")
             return
         price = float(price_input) if price_input else book.price
 
-        location = input(f"Location [{book.location}]: ").strip() or book.location
-        print(f"Current Condition: {book.book_condition}")
+        location = ui.prompt("Location", default=book.location).strip() or book.location
+        ui.info(f"Current Condition: {book.book_condition}")
         book_condition = choose_book_condition()
         #print(f"Current Listing Type: {book.listing_type}")
         #listing_type = choose_listing_type()
-        edition = input(f"Edition [{book.edition or ''}]: ").strip() or book.edition
+        edition = ui.prompt("Edition", default=book.edition or "").strip() or book.edition
 
         Book.update(
             book.book_id, title, author, isbn, category, price, book.seller_name,
             book.phone, location, book_condition, book.listing_type, edition,
         )
-        print("Book updated successfully.")
+        ui.success("Book updated successfully.")
 
     def delete_book(self):
         book = self._select_own_book("delete")
         if book and confirm_action(f"Confirm deletion of '{book.title}'?"):
             Book.soft_delete(book.book_id)
-            print("Book deleted successfully.")
+            ui.success("Book deleted successfully.")
         elif book:
-            print("Deletion cancelled.")
+            ui.warning("Deletion cancelled.")
 
     def _select_own_book(self, action_name):
-        bname = input(f"Enter Book Name to {action_name}: ").strip()
+        bname = ui.prompt(f"Enter Book Name to {action_name}").strip()
         if not Book.search("title",bname):
-            print("Invalid Book ID.")
+            ui.error("Invalid Book ID.")
             return None
         book = Book.get_by_id(bname)
         if not book:
-            print("Book not found.")
+            ui.error("Book not found.")
             return None
         if book.owner_id != self.session.user_id:
-            print("You can only manage your own listings.")
+            ui.error("You can only manage your own listings.")
             return None
         return book
 
     # ==================== MARKETPLACE (Module 3) ====================
     def browse_books(self):
-        print("\n--- BROWSE BOOKS ---")
-        print("1. All Books")
-        print("2. Available for Sale")
-        # print("3. Available for Donation")
-        # print("4. Available for Exchange")
-        choice = input("Enter choice: ").strip()
+        ui.menu(
+            "BROWSE BOOKS",
+            [
+                ("1", "All Books", "📚"),
+                ("2", "Available for Sale", "💰"),
+                # ("3", "Available for Donation", "🎁"),
+                # ("4", "Available for Exchange", "🔄"),
+            ],
+            icon="📚",
+        )
+        choice = ui.prompt("Enter choice").strip()
 
         if choice == "1":
             _print_books(Book.get_all(), title="ALL BOOKS")
@@ -156,20 +167,25 @@ class BookManagement:
         elif choice == "4":
             _print_books(Book.get_by_listing_type("Exchange"), title="BOOKS FOR EXCHANGE")
         else:
-            print("Invalid choice.")
+            ui.warning("Invalid choice.")
 
     def search_books(self):
-        print("\n--- SEARCH BOOKS ---")
-        print("1. By Title")
-        print("2. By Author")
-        print("3. By ISBN")
-        print("4. By Category")
-        print("5. By Price Range")
-        print("6. By Availability")
-        print("7. By Location")
-        print("8. By Condition")
-        print("9. By Edition")
-        choice = input("Enter choice: ").strip()
+        ui.menu(
+            "SEARCH BOOKS",
+            [
+                ("1", "By Title", "🔤"),
+                ("2", "By Author", "✍️"),
+                ("3", "By ISBN", "🔢"),
+                ("4", "By Category", "🏷️"),
+                ("5", "By Price Range", "💰"),
+                ("6", "By Availability", "📶"),
+                ("7", "By Location", "📍"),
+                ("8", "By Condition", "🧾"),
+                ("9", "By Edition", "📖"),
+            ],
+            icon="🔍",
+        )
+        choice = ui.prompt("Enter choice").strip()
 
         try:
             if choice == "1":
@@ -194,10 +210,10 @@ class BookManagement:
             elif choice == "9":
                 books = Book.search("edition", get_non_empty_input("Edition: "))
             else:
-                print("Invalid choice.")
+                ui.warning("Invalid choice.")
                 return
         except Exception as e:
-            print(f"Search failed: {e}")
+            ui.error(f"Search failed: {e}")
             return
 
         _print_books(books, title="SEARCH RESULTS")
@@ -207,16 +223,16 @@ class BookManagement:
         _print_books(Book.get_all(), title="ALL BOOK LISTINGS (ADMIN VIEW)")
 
     def admin_delete_book(self):
-        bid = input("Enter Book ID to delete: ").strip()
+        bid = ui.prompt("Enter Book ID to delete").strip()
         if not bid.isdigit():
-            print("Invalid Book ID.")
+            ui.error("Invalid Book ID.")
             return
         book = Book.get_by_idd(int(bid))
         if not book:
-            print("Book not found.")
+            ui.error("Book not found.")
             return
         if confirm_action(f"Confirm admin deletion of '{book.title}'?"):
             Book.soft_delete(book.book_id)
-            print("Book deleted successfully.")
+            ui.success("Book deleted successfully.")
         else:
-            print("Deletion cancelled.")
+            ui.warning("Deletion cancelled.")

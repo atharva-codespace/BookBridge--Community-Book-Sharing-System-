@@ -1,7 +1,7 @@
-# Book Bank Management System (BookBridge)
+# BookBridge
 
 A console-based Used Book Exchange, Donation & Resale Platform built with
-pure Python and MySQL (no web or GUI frameworks). Covers all six modules:
+pure Python and SQLite (no web or GUI frameworks). Covers all six modules:
 Account & Profile Management, Book Inventory & Listing Management, Book
 Search & Discovery, Book Request/Reservation/Wishlist Management, User
 Ratings & Feedback, and an Administrative Dashboard with Analytics/Reports.
@@ -11,13 +11,25 @@ Ratings & Feedback, and an Administrative Dashboard with Analytics/Reports.
 1. **Create the database.**
 
    ```
-   mysql -u root -p < database/database.sql
+   sqlite3 book_bank.db < database/database.sql
    ```
 
    This creates every table used by the app: `Users`, `Administrators`,
    `Login_History`, `Profile_Update_History`, `Password_Change_History`,
    `User_Preferences`, `Books`, `Reviews`, `Wishlist`, `Book_Requests`,
-   `Reservations`, and `Notifications`.
+   `Reservations`, and `Notifications`, in a local `book_bank.db` file at
+   the project root.
+
+   Optionally, load some sample data (8 users, 2 admins, 10 books, reviews,
+   wishlist entries, requests, reservations, notifications and deliveries)
+   to explore the app without entering everything by hand:
+
+   ```
+   sqlite3 book_bank.db < database/seed_data.sql
+   ```
+
+   Every sample account (users, admins, delivery boys) uses the password
+   `Password123!`.
 
 2. **Install dependencies.**
 
@@ -25,14 +37,16 @@ Ratings & Feedback, and an Administrative Dashboard with Analytics/Reports.
    pip install -r requirements.txt
    ```
 
-   This installs `mysql-connector-python`, `bcrypt`, `tabulate` (table
-   formatting), `matplotlib` (analytics graphs), and `reportlab` (PDF
-   reports).
+   This installs `bcrypt`, `tabulate` (table formatting), `matplotlib`
+   (analytics graphs), and `reportlab` (PDF reports). SQLite support comes
+   built into Python, so no separate database driver is needed.
 
-3. **Set your MySQL credentials.**
+3. **(Optional) Point the app at a different database file.**
 
-   Open `database/db.py` and edit the `DB_CONFIG` dictionary (`host`,
-   `user`, `password`) to match your MySQL setup.
+   By default the app uses `book_bank.db` in the project root, anchored to
+   the file's location so it works no matter which directory you launch
+   `main.py` from. To use a different file/path, edit `Database.DB_PATH` in
+   `database/db.py`.
 
 4. **(Optional) Enable email features.**
 
