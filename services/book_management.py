@@ -149,12 +149,11 @@ class BookManagement:
         ui.menu(
             "BROWSE BOOKS",
             [
-                ("1", "All Books", "📚"),
-                ("2", "Available for Sale", "💰"),
-                # ("3", "Available for Donation", "🎁"),
-                # ("4", "Available for Exchange", "🔄"),
+                ("1", "All Books"),
+                ("2", "Available for Sale"),
+                # ("3", "Available for Donation"),
+                # ("4", "Available for Exchange"),
             ],
-            icon="📚",
         )
         choice = ui.prompt("Enter choice").strip()
 
@@ -173,17 +172,16 @@ class BookManagement:
         ui.menu(
             "SEARCH BOOKS",
             [
-                ("1", "By Title", "🔤"),
-                ("2", "By Author", "✍️"),
-                ("3", "By ISBN", "🔢"),
-                ("4", "By Category", "🏷️"),
-                ("5", "By Price Range", "💰"),
-                ("6", "By Availability", "📶"),
-                ("7", "By Location", "📍"),
-                ("8", "By Condition", "🧾"),
-                ("9", "By Edition", "📖"),
+                ("1", "By Title"),
+                ("2", "By Author"),
+                ("3", "By ISBN"),
+                ("4", "By Category"),
+                ("5", "By Price Range"),
+                ("6", "By Availability"),
+                ("7", "By Location"),
+                ("8", "By Condition"),
+                ("9", "By Edition"),
             ],
-            icon="🔍",
         )
         choice = ui.prompt("Enter choice").strip()
 

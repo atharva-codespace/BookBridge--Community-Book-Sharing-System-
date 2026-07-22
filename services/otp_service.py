@@ -127,11 +127,10 @@ class OTPService:
             ui.menu(
                 "EMAIL VERIFICATION",
                 [
-                    ("1", "Enter OTP", "🔢"),
-                    ("2", "Resend OTP", "🔁"),
-                    ("3", "Cancel", "🚫"),
+                    ("1", "Enter OTP"),
+                    ("2", "Resend OTP"),
+                    ("3", "Cancel"),
                 ],
-                icon="📧",
             )
 
             choice = ui.prompt("Enter Choice").strip()

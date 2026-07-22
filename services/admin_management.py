@@ -97,7 +97,7 @@ class AdminManagement:
     # ==================== PROMOTE USER TO ADMIN (Feature 12) ====================
     def promote_user_to_admin(self):
         ui.section_header("PROMOTE USER TO ADMIN", icon="⬆️")
-        ui.menu("SEARCH BY", [("1", "Username", "🔤"), ("2", "Email", "📧"), ("3", "User ID", "🆔")])
+        ui.menu("SEARCH BY", [("1", "Username"), ("2", "Email"), ("3", "User ID")])
         choice = ui.prompt("Choice").strip()
 
         user = None
