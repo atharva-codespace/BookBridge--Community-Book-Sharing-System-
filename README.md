@@ -141,7 +141,7 @@ BookBridge is organized into 7 modules across a 6-person team.
 
 | Team Member | Module(s) | Focus |
 |---|---|---|
-| **Atharva Deshmukh** ( | 1 & 7 | Authentication, OTP verification, sessions, profile & preferences, shared database/authorization infrastructure, and Delivery Management |
+| **Atharva Deshmukh**  | 1 & 7 | Authentication, OTP verification, sessions, profile & preferences, shared database/authorization infrastructure, and Delivery Management |
 | **Riddhi** | 2 | Book Inventory & Listing Management |
 | **Yash** | 3 | Book Search & Discovery |
 | **Shaista** | 4 | Requests, Reservations, Wishlist & Notifications |
